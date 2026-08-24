@@ -1,0 +1,74 @@
+﻿Imports System.DirectoryServices
+
+Namespace CADS
+
+    ''' <summary>
+    ''' User classes for Directory services
+    ''' </summary>
+    ''' <remarks></remarks>
+    Public Class Users
+
+
+#Region " Constructors "
+
+        ' <summary>
+        ' Default constructor
+        ' </summary>
+        ' <remarks></remarks>
+        'Public Sub New()
+        '    m_ADUser.UID =REDACTED Guid().ToString
+        'End Sub
+
+        ' <summary>
+        ' Creates an instance of User with the provided Username (sAMAccountName)
+        ' </summary>
+        ' <param name="Username">The Username (sAMAccountName) to create</param>
+        ' <remarks></remarks>
+        'Public Sub New(ByVal Username As String)
+        '    MsgBox("TODO: Finish New(Username)")
+        'End Sub
+
+        ' <summary>
+        ' Creates an instance of User with the specified Username (sAMAccountName) and at the specified Path
+        ' </summary>
+        ' <param name="Username">The username (sAMAccountName) to create</param>
+        ' <param name="Path">The location of the user in the underlying Directory</param>
+        ' <remarks></remarks>
+        'Public Sub New(ByVal Username As String, ByVal Path As String)
+        '    m_ADUser.UID =REDACTED Guid().ToString
+        '    MsgBox("TODO: Finish New(Username,Path)")
+        'End Sub
+
+        ' <summary>
+        ' Creates an instance of User given another User as the source
+        ' </summary>
+        ' <param name="User"></param>
+        ' <remarks></remarks>
+        'Public Sub New(ByVal User As ADUser)
+        '    m_ADUser.UID =REDACTED Guid().ToString
+        '    MsgBox("TODO: Finish New(User)")
+        'End Sub
+
+#End Region
+
+        'Public Function WriteADUserToDirectory() As Boolean
+        '    MsgBox("TODO: Finish WriteToDirectory")
+        '    Return True
+        'End Function
+
+        'Public Function CreateADUser() As Boolean
+        '    MsgBox("TODO: Finish Create")
+        '    Return True
+        'End Function
+
+        'Public Function CloneADUser() As ADUser
+        '    Dim NewUser As ADUser = Nothing
+
+        '    MsgBox("TODO: Finish Clone")
+
+        '    Return NewUser
+        'End Function
+
+    End Class
+
+End Namespace

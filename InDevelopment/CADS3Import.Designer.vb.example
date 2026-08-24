@@ -1,0 +1,506 @@
+﻿<Global.Microsoft.VisualBasic.CompilerServices.DesignerGenerated()> _
+Partial Class CADS3Import
+    Inherits System.Windows.Forms.Form
+
+    'Form overrides dispose to clean up the component list.
+    <System.Diagnostics.DebuggerNonUserCode()> _
+    Protected Overrides Sub Dispose(ByVal disposing As Boolean)
+        Try
+            If disposing AndAlso components IsNot Nothing Then
+                components.Dispose()
+            End If
+        Finally
+            MyBase.Dispose(disposing)
+        End Try
+    End Sub
+
+    'Required by the Windows Form Designer
+    Private components As System.ComponentModel.IContainer
+
+    'NOTE: The following procedure is required by the Windows Form Designer
+    'It can be modified using the Windows Form Designer.  
+    'Do not modify it using the code editor.
+    <System.Diagnostics.DebuggerStepThrough()> _
+    Private Sub InitializeComponent()
+        Dim resources As System.ComponentModel.ComponentResourceManager = New System.ComponentModel.ComponentResourceManager(GetType(CADS3Import))
+        Me.pnlStep1 = New System.Windows.Forms.Panel
+        Me.lblContent1 = New System.Windows.Forms.Label
+        Me.lblHeading1 = New System.Windows.Forms.Label
+        Me.btnBack = New System.Windows.Forms.Button
+        Me.btnNext = New System.Windows.Forms.Button
+        Me.btnCancel = New System.Windows.Forms.Button
+        Me.PictureBox1 = New System.Windows.Forms.PictureBox
+        Me.optImportTypeCSV = New System.Windows.Forms.RadioButton
+        Me.optImportTypeTab = New System.Windows.Forms.RadioButton
+        Me.txtFilename = New System.Windows.Forms.TextBox
+        Me.btnBrowse = New System.Windows.Forms.Button
+        Me.txtUsername = New System.Windows.Forms.TextBox
+        Me.txtDomain = New System.Windows.Forms.TextBox
+        Me.txtPassword =REDACTED System.Windows.Forms.TextBox
+        Me.lblDomain = New System.Windows.Forms.Label
+        Me.lblUsername = New System.Windows.Forms.Label
+        Me.lblPassword =REDACTED System.Windows.Forms.Label
+        Me.txtLDAPPath = New System.Windows.Forms.TextBox
+        Me.pnlStep2 = New System.Windows.Forms.Panel
+        Me.lblContent2 = New System.Windows.Forms.Label
+        Me.lblHeading2 = New System.Windows.Forms.Label
+        Me.pnlStep3 = New System.Windows.Forms.Panel
+        Me.lblContent3 = New System.Windows.Forms.Label
+        Me.lblHeading3 = New System.Windows.Forms.Label
+        Me.pnlStep4 = New System.Windows.Forms.Panel
+        Me.tvwDirectory = New System.Windows.Forms.TreeView
+        Me.btnConnect = New System.Windows.Forms.Button
+        Me.Label2 = New System.Windows.Forms.Label
+        Me.Label1 = New System.Windows.Forms.Label
+        Me.pnlStep5 = New System.Windows.Forms.Panel
+        Me.Label4 = New System.Windows.Forms.Label
+        Me.Label3 = New System.Windows.Forms.Label
+        Me.pnlStep6 = New System.Windows.Forms.Panel
+        Me.txtDetails = New System.Windows.Forms.TextBox
+        Me.Label5 = New System.Windows.Forms.Label
+        Me.Label6 = New System.Windows.Forms.Label
+        Me.Label7 = New System.Windows.Forms.Label
+        Me.txtSelectedNode = New System.Windows.Forms.TextBox
+        Me.pnlStep1.SuspendLayout()
+        CType(Me.PictureBox1, System.ComponentModel.ISupportInitialize).BeginInit()
+        Me.pnlStep2.SuspendLayout()
+        Me.pnlStep3.SuspendLayout()
+        Me.pnlStep4.SuspendLayout()
+        Me.pnlStep5.SuspendLayout()
+        Me.pnlStep6.SuspendLayout()
+        Me.SuspendLayout()
+        '
+        'pnlStep1
+        '
+        Me.pnlStep1.BackColor = System.Drawing.Color.White
+        Me.pnlStep1.Controls.Add(Me.lblContent1)
+        Me.pnlStep1.Controls.Add(Me.lblHeading1)
+        Me.pnlStep1.Location = New System.Drawing.Point(166, 0)
+        Me.pnlStep1.Name = "pnlStep1"
+        Me.pnlStep1.Size = New System.Drawing.Size(333, 313)
+        Me.pnlStep1.TabIndex = 10
+        '
+        'lblContent1
+        '
+        Me.lblContent1.Location = New System.Drawing.Point(9, 29)
+        Me.lblContent1.Name = "lblContent1"
+        Me.lblContent1.Size = New System.Drawing.Size(234, 40)
+        Me.lblContent1.TabIndex = 11
+        Me.lblContent1.Text = "Welcome to the CADS3 User Import Wizard.  Click Next to begin."
+        '
+        'lblHeading1
+        '
+        Me.lblHeading1.Font = New System.Drawing.Font("Microsoft Sans Serif", 8.25!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
+        Me.lblHeading1.Location = New System.Drawing.Point(6, 9)
+        Me.lblHeading1.Name = "lblHeading1"
+        Me.lblHeading1.Size = New System.Drawing.Size(145, 20)
+        Me.lblHeading1.TabIndex = 4
+        Me.lblHeading1.Text = "Welcome"
+        '
+        'btnBack
+        '
+        Me.btnBack.Enabled = False
+        Me.btnBack.Location = New System.Drawing.Point(243, 321)
+        Me.btnBack.Name = "btnBack"
+        Me.btnBack.Size = New System.Drawing.Size(75, 23)
+        Me.btnBack.TabIndex = 9
+        Me.btnBack.Text = "Back"
+        Me.btnBack.UseVisualStyleBackColor = True
+        '
+        'btnNext
+        '
+        Me.btnNext.Location = New System.Drawing.Point(324, 321)
+        Me.btnNext.Name = "btnNext"
+        Me.btnNext.Size = New System.Drawing.Size(75, 23)
+        Me.btnNext.TabIndex = 8
+        Me.btnNext.Text = "Next"
+        Me.btnNext.UseVisualStyleBackColor = True
+        '
+        'btnCancel
+        '
+        Me.btnCancel.DialogResult = System.Windows.Forms.DialogResult.Cancel
+        Me.btnCancel.Location = New System.Drawing.Point(405, 321)
+        Me.btnCancel.Name = "btnCancel"
+        Me.btnCancel.Size = New System.Drawing.Size(75, 23)
+        Me.btnCancel.TabIndex = 7
+        Me.btnCancel.Text = "Cancel"
+        Me.btnCancel.UseVisualStyleBackColor = True
+        '
+        'PictureBox1
+        '
+        Me.PictureBox1.Image = CType(resources.GetObject("PictureBox1.Image"), System.Drawing.Image)
+        Me.PictureBox1.Location = New System.Drawing.Point(0, 0)
+        Me.PictureBox1.Name = "PictureBox1"
+        Me.PictureBox1.Size = New System.Drawing.Size(167, 313)
+        Me.PictureBox1.SizeMode = System.Windows.Forms.PictureBoxSizeMode.AutoSize
+        Me.PictureBox1.TabIndex = 6
+        Me.PictureBox1.TabStop = False
+        '
+        'optImportTypeCSV
+        '
+        Me.optImportTypeCSV.AutoSize = True
+        Me.optImportTypeCSV.BackColor = System.Drawing.SystemColors.ButtonHighlight
+        Me.optImportTypeCSV.Location = New System.Drawing.Point(9, 52)
+        Me.optImportTypeCSV.Name = "optImportTypeCSV"
+        Me.optImportTypeCSV.Size = New System.Drawing.Size(169, 17)
+        Me.optImportTypeCSV.TabIndex = 11
+        Me.optImportTypeCSV.TabStop = True
+        Me.optImportTypeCSV.Text = "Comma Separated Text (*.csv)"
+        Me.optImportTypeCSV.UseVisualStyleBackColor = False
+        '
+        'optImportTypeTab
+        '
+        Me.optImportTypeTab.AutoSize = True
+        Me.optImportTypeTab.BackColor = System.Drawing.SystemColors.ButtonHighlight
+        Me.optImportTypeTab.Location = New System.Drawing.Point(9, 75)
+        Me.optImportTypeTab.Name = "optImportTypeTab"
+        Me.optImportTypeTab.Size = New System.Drawing.Size(147, 17)
+        Me.optImportTypeTab.TabIndex = 12
+        Me.optImportTypeTab.TabStop = True
+        Me.optImportTypeTab.Text = "Tab Separated Text (*.txt)"
+        Me.optImportTypeTab.UseVisualStyleBackColor = False
+        '
+        'txtFilename
+        '
+        Me.txtFilename.Location = New System.Drawing.Point(9, 54)
+        Me.txtFilename.Name = "txtFilename"
+        Me.txtFilename.Size = New System.Drawing.Size(281, 20)
+        Me.txtFilename.TabIndex = 13
+        '
+        'btnBrowse
+        '
+        Me.btnBrowse.Location = New System.Drawing.Point(296, 52)
+        Me.btnBrowse.Name = "btnBrowse"
+        Me.btnBrowse.Size = New System.Drawing.Size(30, 23)
+        Me.btnBrowse.TabIndex = 14
+        Me.btnBrowse.Text = "..."
+        Me.btnBrowse.UseVisualStyleBackColor = True
+        '
+        'txtUsername
+        '
+        Me.txtUsername.Location = New System.Drawing.Point(81, 87)
+        Me.txtUsername.Name = "txtUsername"
+        Me.txtUsername.Size = New System.Drawing.Size(186, 20)
+        Me.txtUsername.TabIndex = 15
+        '
+        'txtDomain
+        '
+        Me.txtDomain.Location = New System.Drawing.Point(81, 61)
+        Me.txtDomain.Name = "txtDomain"
+        Me.txtDomain.Size = New System.Drawing.Size(186, 20)
+        Me.txtDomain.TabIndex = 16
+        '
+        'txtPassword
+        '
+        Me.txtPassword.Location = New System.Drawing.Point(81, 113)
+        Me.txtPassword.Name = "txtPassword"
+        Me.txtPassword.PasswordChar = Global.Microsoft.VisualBasic.ChrW(42)
+        Me.txtPassword.Size = New System.Drawing.Size(186, 20)
+        Me.txtPassword.TabIndex = 17
+        '
+        'lblDomain
+        '
+        Me.lblDomain.AutoSize = True
+        Me.lblDomain.BackColor = System.Drawing.SystemColors.ButtonHighlight
+        Me.lblDomain.Location = New System.Drawing.Point(6, 64)
+        Me.lblDomain.Name = "lblDomain"
+        Me.lblDomain.Size = New System.Drawing.Size(43, 13)
+        Me.lblDomain.TabIndex = 18
+        Me.lblDomain.Text = "Domain"
+        '
+        'lblUsername
+        '
+        Me.lblUsername.AutoSize = True
+        Me.lblUsername.BackColor = System.Drawing.SystemColors.ButtonHighlight
+        Me.lblUsername.Location = New System.Drawing.Point(6, 90)
+        Me.lblUsername.Name = "lblUsername"
+        Me.lblUsername.Size = New System.Drawing.Size(55, 13)
+        Me.lblUsername.TabIndex = 19
+        Me.lblUsername.Text = "Username"
+        '
+        'lblPassword
+        '
+        Me.lblPassword.AutoSize = True
+        Me.lblPassword.BackColor = System.Drawing.SystemColors.ButtonHighlight
+        Me.lblPassword.Location = New System.Drawing.Point(6, 116)
+        Me.lblPassword.Name = "lblPassword"
+        Me.lblPassword.Size = New System.Drawing.Size(53, 13)
+        Me.lblPassword.TabIndex = 20
+        Me.lblPassword.Text = "Password"
+        '
+        'txtLDAPPath
+        '
+        Me.txtLDAPPath.Location = New System.Drawing.Point(9, 54)
+        Me.txtLDAPPath.Name = "txtLDAPPath"
+        Me.txtLDAPPath.Size = New System.Drawing.Size(228, 20)
+        Me.txtLDAPPath.TabIndex = 21
+        '
+        'pnlStep2
+        '
+        Me.pnlStep2.BackColor = System.Drawing.SystemColors.ButtonHighlight
+        Me.pnlStep2.Controls.Add(Me.lblContent2)
+        Me.pnlStep2.Controls.Add(Me.lblHeading2)
+        Me.pnlStep2.Controls.Add(Me.optImportTypeCSV)
+        Me.pnlStep2.Controls.Add(Me.optImportTypeTab)
+        Me.pnlStep2.Location = New System.Drawing.Point(590, 0)
+        Me.pnlStep2.Name = "pnlStep2"
+        Me.pnlStep2.Size = New System.Drawing.Size(333, 313)
+        Me.pnlStep2.TabIndex = 22
+        '
+        'lblContent2
+        '
+        Me.lblContent2.Location = New System.Drawing.Point(9, 29)
+        Me.lblContent2.Name = "lblContent2"
+        Me.lblContent2.Size = New System.Drawing.Size(309, 22)
+        Me.lblContent2.TabIndex = 14
+        Me.lblContent2.Text = "Select the file type to import."
+        '
+        'lblHeading2
+        '
+        Me.lblHeading2.Font = New System.Drawing.Font("Microsoft Sans Serif", 8.25!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
+        Me.lblHeading2.Location = New System.Drawing.Point(6, 9)
+        Me.lblHeading2.Name = "lblHeading2"
+        Me.lblHeading2.Size = New System.Drawing.Size(145, 20)
+        Me.lblHeading2.TabIndex = 13
+        Me.lblHeading2.Text = "Import File Type"
+        '
+        'pnlStep3
+        '
+        Me.pnlStep3.BackColor = System.Drawing.SystemColors.ButtonHighlight
+        Me.pnlStep3.Controls.Add(Me.lblContent3)
+        Me.pnlStep3.Controls.Add(Me.lblHeading3)
+        Me.pnlStep3.Controls.Add(Me.txtFilename)
+        Me.pnlStep3.Controls.Add(Me.btnBrowse)
+        Me.pnlStep3.Location = New System.Drawing.Point(563, 40)
+        Me.pnlStep3.Name = "pnlStep3"
+        Me.pnlStep3.Size = New System.Drawing.Size(333, 313)
+        Me.pnlStep3.TabIndex = 23
+        '
+        'lblContent3
+        '
+        Me.lblContent3.Location = New System.Drawing.Point(6, 29)
+        Me.lblContent3.Name = "lblContent3"
+        Me.lblContent3.Size = New System.Drawing.Size(324, 22)
+        Me.lblContent3.TabIndex = 15
+        Me.lblContent3.Text = "Enter the filename to import."
+        '
+        'lblHeading3
+        '
+        Me.lblHeading3.Font = New System.Drawing.Font("Microsoft Sans Serif", 8.25!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
+        Me.lblHeading3.Location = New System.Drawing.Point(6, 9)
+        Me.lblHeading3.Name = "lblHeading3"
+        Me.lblHeading3.Size = New System.Drawing.Size(145, 20)
+        Me.lblHeading3.TabIndex = 14
+        Me.lblHeading3.Text = "Import Filename"
+        '
+        'pnlStep4
+        '
+        Me.pnlStep4.BackColor = System.Drawing.SystemColors.ButtonHighlight
+        Me.pnlStep4.Controls.Add(Me.txtSelectedNode)
+        Me.pnlStep4.Controls.Add(Me.Label7)
+        Me.pnlStep4.Controls.Add(Me.tvwDirectory)
+        Me.pnlStep4.Controls.Add(Me.btnConnect)
+        Me.pnlStep4.Controls.Add(Me.Label2)
+        Me.pnlStep4.Controls.Add(Me.Label1)
+        Me.pnlStep4.Controls.Add(Me.txtLDAPPath)
+        Me.pnlStep4.Location = New System.Drawing.Point(547, 92)
+        Me.pnlStep4.Name = "pnlStep4"
+        Me.pnlStep4.Size = New System.Drawing.Size(333, 313)
+        Me.pnlStep4.TabIndex = 24
+        '
+        'tvwDirectory
+        '
+        Me.tvwDirectory.Location = New System.Drawing.Point(9, 119)
+        Me.tvwDirectory.Name = "tvwDirectory"
+        Me.tvwDirectory.Size = New System.Drawing.Size(309, 174)
+        Me.tvwDirectory.TabIndex = 24
+        '
+        'btnConnect
+        '
+        Me.btnConnect.Location = New System.Drawing.Point(243, 51)
+        Me.btnConnect.Name = "btnConnect"
+        Me.btnConnect.Size = New System.Drawing.Size(75, 23)
+        Me.btnConnect.TabIndex = 23
+        Me.btnConnect.Text = "Connect..."
+        Me.btnConnect.UseVisualStyleBackColor = True
+        '
+        'Label2
+        '
+        Me.Label2.Location = New System.Drawing.Point(6, 29)
+        Me.Label2.Name = "Label2"
+        Me.Label2.Size = New System.Drawing.Size(231, 22)
+        Me.Label2.TabIndex = 22
+        Me.Label2.Text = "Enter the Destination Directory Path."
+        '
+        'Label1
+        '
+        Me.Label1.Font = New System.Drawing.Font("Microsoft Sans Serif", 8.25!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
+        Me.Label1.Location = New System.Drawing.Point(6, 9)
+        Me.Label1.Name = "Label1"
+        Me.Label1.Size = New System.Drawing.Size(204, 20)
+        Me.Label1.TabIndex = 15
+        Me.Label1.Text = "Destination Directory Path (Users)"
+        '
+        'pnlStep5
+        '
+        Me.pnlStep5.BackColor = System.Drawing.SystemColors.ButtonHighlight
+        Me.pnlStep5.Controls.Add(Me.Label4)
+        Me.pnlStep5.Controls.Add(Me.Label3)
+        Me.pnlStep5.Controls.Add(Me.lblDomain)
+        Me.pnlStep5.Controls.Add(Me.lblUsername)
+        Me.pnlStep5.Controls.Add(Me.txtPassword)
+        Me.pnlStep5.Controls.Add(Me.lblPassword)
+        Me.pnlStep5.Controls.Add(Me.txtUsername)
+        Me.pnlStep5.Controls.Add(Me.txtDomain)
+        Me.pnlStep5.Location = New System.Drawing.Point(263, 443)
+        Me.pnlStep5.Name = "pnlStep5"
+        Me.pnlStep5.Size = New System.Drawing.Size(333, 313)
+        Me.pnlStep5.TabIndex = 25
+        '
+        'Label4
+        '
+        Me.Label4.Location = New System.Drawing.Point(6, 29)
+        Me.Label4.Name = "Label4"
+        Me.Label4.Size = New System.Drawing.Size(324, 29)
+        Me.Label4.TabIndex = 23
+        Me.Label4.Text = "Enter credentials that have appropriate rights to create user objects within the " & _
+            "destination directory."
+        '
+        'Label3
+        '
+        Me.Label3.Font = New System.Drawing.Font("Microsoft Sans Serif", 8.25!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
+        Me.Label3.Location = New System.Drawing.Point(6, 9)
+        Me.Label3.Name = "Label3"
+        Me.Label3.Size = New System.Drawing.Size(171, 20)
+        Me.Label3.TabIndex = 16
+        Me.Label3.Text = "Directory Credentials"
+        '
+        'pnlStep6
+        '
+        Me.pnlStep6.BackColor = System.Drawing.SystemColors.ButtonHighlight
+        Me.pnlStep6.Controls.Add(Me.txtDetails)
+        Me.pnlStep6.Controls.Add(Me.Label5)
+        Me.pnlStep6.Controls.Add(Me.Label6)
+        Me.pnlStep6.Location = New System.Drawing.Point(602, 443)
+        Me.pnlStep6.Name = "pnlStep6"
+        Me.pnlStep6.Size = New System.Drawing.Size(333, 313)
+        Me.pnlStep6.TabIndex = 26
+        '
+        'txtDetails
+        '
+        Me.txtDetails.BackColor = System.Drawing.SystemColors.ButtonHighlight
+        Me.txtDetails.Location = New System.Drawing.Point(9, 64)
+        Me.txtDetails.Multiline = True
+        Me.txtDetails.Name = "txtDetails"
+        Me.txtDetails.ReadOnly = True
+        Me.txtDetails.Size = New System.Drawing.Size(312, 235)
+        Me.txtDetails.TabIndex = 26
+        '
+        'Label5
+        '
+        Me.Label5.Location = New System.Drawing.Point(9, 29)
+        Me.Label5.Name = "Label5"
+        Me.Label5.Size = New System.Drawing.Size(312, 45)
+        Me.Label5.TabIndex = 25
+        Me.Label5.Text = "The wizard has collected all the necessary information so the import can now proc" & _
+            "eed.  Click Finish to initiate the import."
+        '
+        'Label6
+        '
+        Me.Label6.Font = New System.Drawing.Font("Microsoft Sans Serif", 8.25!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
+        Me.Label6.Location = New System.Drawing.Point(6, 9)
+        Me.Label6.Name = "Label6"
+        Me.Label6.Size = New System.Drawing.Size(171, 20)
+        Me.Label6.TabIndex = 24
+        Me.Label6.Text = "Ready to start"
+        '
+        'Label7
+        '
+        Me.Label7.AutoSize = True
+        Me.Label7.Location = New System.Drawing.Point(6, 77)
+        Me.Label7.Name = "Label7"
+        Me.Label7.Size = New System.Drawing.Size(81, 13)
+        Me.Label7.TabIndex = 25
+        Me.Label7.Text = "Selected Node:"
+        '
+        'txtSelectedNode
+        '
+        Me.txtSelectedNode.Location = New System.Drawing.Point(9, 93)
+        Me.txtSelectedNode.Name = "txtSelectedNode"
+        Me.txtSelectedNode.Size = New System.Drawing.Size(309, 20)
+        Me.txtSelectedNode.TabIndex = 26
+        '
+        'CADS3Import
+        '
+        Me.AutoScaleDimensions = New System.Drawing.SizeF(6.0!, 13.0!)
+        Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font
+        Me.ClientSize = New System.Drawing.Size(939, 511)
+        Me.ControlBox = False
+        Me.Controls.Add(Me.pnlStep6)
+        Me.Controls.Add(Me.pnlStep5)
+        Me.Controls.Add(Me.pnlStep4)
+        Me.Controls.Add(Me.pnlStep3)
+        Me.Controls.Add(Me.pnlStep2)
+        Me.Controls.Add(Me.pnlStep1)
+        Me.Controls.Add(Me.btnBack)
+        Me.Controls.Add(Me.btnNext)
+        Me.Controls.Add(Me.btnCancel)
+        Me.Controls.Add(Me.PictureBox1)
+        Me.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle
+        Me.Name = "CADS3Import"
+        Me.Text = "Import Wizard"
+        Me.pnlStep1.ResumeLayout(False)
+        CType(Me.PictureBox1, System.ComponentModel.ISupportInitialize).EndInit()
+        Me.pnlStep2.ResumeLayout(False)
+        Me.pnlStep2.PerformLayout()
+        Me.pnlStep3.ResumeLayout(False)
+        Me.pnlStep3.PerformLayout()
+        Me.pnlStep4.ResumeLayout(False)
+        Me.pnlStep4.PerformLayout()
+        Me.pnlStep5.ResumeLayout(False)
+        Me.pnlStep5.PerformLayout()
+        Me.pnlStep6.ResumeLayout(False)
+        Me.pnlStep6.PerformLayout()
+        Me.ResumeLayout(False)
+        Me.PerformLayout()
+
+    End Sub
+    Friend WithEvents pnlStep1 As System.Windows.Forms.Panel
+    Friend WithEvents lblHeading1 As System.Windows.Forms.Label
+    Friend WithEvents btnBack As System.Windows.Forms.Button
+    Friend WithEvents btnNext As System.Windows.Forms.Button
+    Friend WithEvents btnCancel As System.Windows.Forms.Button
+    Friend WithEvents PictureBox1 As System.Windows.Forms.PictureBox
+    Friend WithEvents lblContent1 As System.Windows.Forms.Label
+    Friend WithEvents optImportTypeCSV As System.Windows.Forms.RadioButton
+    Friend WithEvents optImportTypeTab As System.Windows.Forms.RadioButton
+    Friend WithEvents txtFilename As System.Windows.Forms.TextBox
+    Friend WithEvents btnBrowse As System.Windows.Forms.Button
+    Friend WithEvents txtUsername As System.Windows.Forms.TextBox
+    Friend WithEvents txtDomain As System.Windows.Forms.TextBox
+    Friend WithEvents txtPassword As System.Windows.Forms.TextBox
+    Friend WithEvents lblDomain As System.Windows.Forms.Label
+    Friend WithEvents lblUsername As System.Windows.Forms.Label
+    Friend WithEvents lblPassword As System.Windows.Forms.Label
+    Friend WithEvents txtLDAPPath As System.Windows.Forms.TextBox
+    Friend WithEvents pnlStep2 As System.Windows.Forms.Panel
+    Friend WithEvents lblContent2 As System.Windows.Forms.Label
+    Friend WithEvents lblHeading2 As System.Windows.Forms.Label
+    Friend WithEvents pnlStep3 As System.Windows.Forms.Panel
+    Friend WithEvents lblHeading3 As System.Windows.Forms.Label
+    Friend WithEvents lblContent3 As System.Windows.Forms.Label
+    Friend WithEvents pnlStep4 As System.Windows.Forms.Panel
+    Friend WithEvents Label1 As System.Windows.Forms.Label
+    Friend WithEvents Label2 As System.Windows.Forms.Label
+    Friend WithEvents pnlStep5 As System.Windows.Forms.Panel
+    Friend WithEvents Label4 As System.Windows.Forms.Label
+    Friend WithEvents Label3 As System.Windows.Forms.Label
+    Friend WithEvents pnlStep6 As System.Windows.Forms.Panel
+    Friend WithEvents txtDetails As System.Windows.Forms.TextBox
+    Friend WithEvents Label5 As System.Windows.Forms.Label
+    Friend WithEvents Label6 As System.Windows.Forms.Label
+    Friend WithEvents btnConnect As System.Windows.Forms.Button
+    Friend WithEvents tvwDirectory As System.Windows.Forms.TreeView
+    Friend WithEvents txtSelectedNode As System.Windows.Forms.TextBox
+    Friend WithEvents Label7 As System.Windows.Forms.Label
+End Class

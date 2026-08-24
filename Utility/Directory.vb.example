@@ -1,0 +1,588 @@
+﻿Imports System.DirectoryServices
+
+Imports Utility.Functions
+Imports Utility.Types
+Imports Utility.Types.ERRORTYPE
+Imports Utility.Types.ERROR_CONFIG
+Imports Utility.Types.ERROR_CRYPT
+Imports Utility.Types.ERROR_DIRECTORY
+Imports Utility.Constants
+Imports Utility.Types.ERROR_FILESYSTEM
+Imports Utility.Types.ERROR_SECURITY
+Imports Utility.Types.LoggingType
+
+''' <summary>
+''' Provides Directory specific functionality
+''' </summary>
+''' <remarks></remarks>
+Public Class Directory
+
+#Region " Private variables "
+
+    Private m_Functions As New Functions
+
+#End Region
+
+#Region " Properties "
+
+    'Public Shared Property DirectoryConnectionUsername() As String
+    '    Get
+    '        Return m_DirectoryConnectionUsername
+    '    End Get
+    '    Set(ByVal value As String)
+    '        m_DirectoryConnectionUsername = value
+    '    End Set
+    'End Property
+
+
+    'Public Shared Property DirectoryConnectionPassword() As String
+    '    Get
+    '        Return m_DirectoryConnectionPassword
+    '    End Get
+    '    Set(ByVal value As String)
+    '        m_DirectoryConnectionPassword =REDACTED
+    '    End Set
+    'End Property
+
+    'Public Shared Property ConnectAnonymous() As Boolean
+    '    Get
+    '        Return ConnectAnonymously
+    '    End Get
+    '    Set(ByVal value As Boolean)
+    '        m_ConnectAnonymous = value
+    '    End Set
+    'End Property
+
+    '''' <summary>
+    '''' The Server connection string, for example: LDAP://SERVER:PORT/  The trailing slash is optional
+    '''' </summary>
+    '''' <value>the connection string to use</value>
+    '''' <returns>The connection string in use</returns>
+    '''' <remarks>V1.0 D. Robinson</remarks>
+    'Public Shared Property ServerConnectionString() As String
+    '    Get
+    '        Return m_ServerConnectionString
+    '    End Get
+    '    Set(ByVal value As String)
+    '        If value.EndsWith("/") Then
+    '            m_ServerConnectionString = value
+    '        Else
+    '            m_ServerConnectionString = value & "/"
+    '        End If
+    '    End Set
+    'End Property
+
+#End Region
+
+#Region " Methods "
+
+    ''' <summary>
+    ''' Check if the given Directory path exists
+    ''' </summary>
+    ''' <param name="DirectoryPath">Fully qualified LDAP Path in the form 'LDAP://[Server:Port/]dc=Name,dc=COM'</param>
+    ''' <returns>Boolean value indicating the result of the search</returns>
+    ''' <remarks>V1.0 D. Robinson</remarks>
+    Public Function LDAPObjectExists(ByVal DirectoryPath As String) As Boolean
+        Dim oSearcher As New DirectorySearcher()
+
+        Try
+            With oSearcher
+                .SearchRoot = New DirectoryEntry(DirectoryPath)
+                .SearchScope = SearchScope.Subtree
+                .Filter = "(objectClass=*)"
+                .FindOne()
+            End With
+            oSearcher = Nothing
+
+            LastStatus.CADS_ERRORCODE = SUCCESS
+            LastStatus.LastException = Nothing
+            'Settings.LastError = ApplicationStatus
+            Return True
+        Catch ex As Exception
+            ' Nothing required here.  An incorrect path will result in an exception which is ok.
+            LastStatus.LastException = ex
+            LastStatus.CADS_ERRORCODE = SUCCESS
+            Return False
+        End Try
+
+    End Function
+
+    ''' <summary>
+    ''' Checks if the given Object name exists in the Directory
+    ''' </summary>
+    ''' <param name="distinguishedName">An object name to look for</param>
+    ''' <returns>Boolean value indicating the result of the search</returns>
+    ''' <remarks>V1.0 D. Robinson</remarks>
+    Public Function ObjectExists(ByVal distinguishedName As String) As Boolean
+        Try
+            If distinguishedName.StartsWith("LDAP://") Then
+                LastStatus.CADS_ERRORCODE = SUCCESS
+                LastStatus.LastException = Nothing
+                Return DirectoryEntry.Exists(distinguishedName)
+            Else
+                LastStatus.CADS_ERRORCODE = SUCCESS
+                LastStatus.LastException = Nothing
+                Return DirectoryEntry.Exists(GlobalSettings.TargetDirectoryServerAndPort & distinguishedName)
+            End If
+
+        Catch ex As Exception
+            Select Case ex.Message.ToString.Trim
+                Case "A referral was returned from the server."
+                    LastStatus.CADS_ERRORCODE = ERROR_DIRECTORY.REFERRAL_RETURNED
+                    LastStatus.LastException = ex
+                    Return False
+                Case "A local error has occurred."
+                    LastStatus.CADS_ERRORCODE = ERROR_DIRECTORY.DIRECTORY_ERROR
+                    LastStatus.LastException = ex
+                    Return False
+                Case Else
+                    LastStatus.CADS_ERRORCODE = ERROR_DIRECTORY.AUTHENTICATION_FAILURE
+                    LastStatus.LastException = ex
+                    Return False
+            End Select
+        End Try
+
+    End Function
+
+    ''' <summary>
+    ''' Check the given Username and Password against the given AD Server
+    ''' </summary>
+    ''' <param name="DirectoryPath">Fully qualified LDAP Path in the form 'LDAP://[Server:Port/]dc=Name,dc=COM'</param>
+    ''' <param name="DomainAndUsername">The Username to check (including Domain Name)</param>
+    ''' <param name="Password">The Password to check</param>
+    ''' <returns>Boolean value indicating the result</returns>
+    ''' <remarks></remarks>
+    Public Function CheckADPassword(ByVal DirectoryPath As String, ByVal DomainAndUsername As String, ByVal Password As String) As Boolean
+        Dim de As DirectoryEntry = New DirectoryEntry(DirectoryPath, DomainAndUsername, Password)
+
+        Try
+            'Bind to the native AdsObject to force authentication.
+            Dim obj As Object = de.NativeObject
+            Try
+                Dim Search As DirectorySearcher = New DirectorySearcher(de)
+
+                Search.Filter = "(sAMAccountName=" & DomainAndUsername.Substring(DomainAndUsername.IndexOf("\") + 1) & ")"
+                Search.PropertiesToLoad.Add("cn")
+                Dim SearchResult As SearchResult = Search.FindOne()
+
+                If (SearchResult Is Nothing) Then
+                    LastStatus.CADS_ERRORCODE = SUCCESS
+                    LastStatus.LastException = Nothing
+                    de.Close()
+                    Return False
+                End If
+
+                LastStatus.CADS_ERRORCODE = SUCCESS
+                LastStatus.LastException = Nothing
+                Return True
+            Catch ex As Exception
+                ' Nothing required here.  An incorrect path will result in an exception which is ok.
+                LastStatus.CADS_ERRORCODE = SUCCESS
+                LastStatus.LastException = ex
+                de.Close()
+                Return False
+            End Try
+        Catch ex As Exception
+            Select Case ex.Message.ToString.Trim
+                Case "A referral was returned from the server."
+                    LastStatus.CADS_ERRORCODE = ERROR_DIRECTORY.REFERRAL_RETURNED
+                    LastStatus.LastException = ex
+                    Return False
+                Case "A local error has occurred."
+                    LastStatus.CADS_ERRORCODE = ERROR_DIRECTORY.DIRECTORY_ERROR
+                    LastStatus.LastException = ex
+                Case Else
+                    LastStatus.CADS_ERRORCODE = ERROR_DIRECTORY.AUTHENTICATION_FAILURE
+                    LastStatus.LastException = ex
+                    Return False
+            End Select
+        End Try
+
+    End Function
+
+    ''' <summary>
+    ''' Check the given Username and Password against the given ADAM Server
+    ''' </summary>
+    ''' <param name="DirectoryPath">Fully qualified LDAP Path in the form 'LDAP://[Server:Port/]dc=Name,dc=COM'</param>
+    ''' <param name="Username">The Username to check</param>
+    ''' <param name="Password">The Password to check</param>
+    ''' <returns>Boolean value indicating the result</returns>
+    ''' <remarks></remarks>
+    Public Function CheckADAMPassword(ByVal DirectoryPath As String, ByVal Username As String, ByVal Password As String) As Boolean
+        Dim de As DirectoryEntry = New DirectoryEntry(DirectoryPath, Username, Password, AuthenticationTypes.ServerBind)
+
+        Try
+            'Bind to the native AdsObject to force authentication.
+            Dim obj As Object = de.NativeObject
+            Try
+                Dim Search As DirectorySearcher = New DirectorySearcher(de)
+
+                LastStatus.CADS_ERRORCODE = SUCCESS
+                LastStatus.LastException = Nothing
+                de.Close()
+
+                Return True
+            Catch ex As Exception
+                ' Nothing required here.  An incorrect path will result in an exception which is ok.
+                LastStatus.CADS_ERRORCODE = SUCCESS
+                LastStatus.LastException = ex
+                de.Close()
+
+                Return False
+            End Try
+        Catch ex As Exception
+            de.Close()
+            Select Case ex.Message.ToString.Trim
+                Case "A referral was returned from the server."
+                    LastStatus.CADS_ERRORCODE = ERROR_DIRECTORY.REFERRAL_RETURNED
+                    LastStatus.LastException = ex
+
+                    Return False
+                Case "A local error has occurred."
+                    LastStatus.CADS_ERRORCODE = ERROR_DIRECTORY.DIRECTORY_ERROR
+                    LastStatus.LastException = ex
+
+                    Return False
+                Case "Logon failure: unknown user name or bad password."
+                    LastStatus.CADS_ERRORCODE = ERROR_DIRECTORY.AUTHENTICATION_FAILURE
+                    LastStatus.LastException = ex
+
+                    Return False
+                Case Else
+                    LastStatus.CADS_ERRORCODE = ERROR_SECURITY.GENERIC_SECURITY_ERROR
+                    LastStatus.LastException = ex
+
+                    Return False
+            End Select
+
+        End Try
+
+    End Function
+
+    ''' <summary>
+    ''' Creates a Organizational unit to callers criteria
+    ''' </summary>
+    ''' <param name="NewOUDistinguishedName">The path of the new OU</param>
+    ''' <returns>CADS4 ERROR_CODE</returns>
+    ''' <remarks>V1.1 D. Robinson</remarks>
+    Public Function CreateOU(ByVal NewOUDistinguishedName As String) As Boolean
+        Try
+            Dim Root As DirectoryEntry     ' Binding object.
+            Dim OU As DirectoryEntry       ' Organizational Unit.
+            Dim OUName As String           ' Organizational Unit Name.
+            Dim Path As String             ' Binding path.
+
+            ' Construct the binding string.
+            Path = NewOUDistinguishedName
+
+            If Not NewOUDistinguishedName.StartsWith("LDAP://") Then
+                OUName = Path
+            Else
+                ' Specify Organizational Unit.
+                Dim i As Integer = Path.IndexOf("//", 0)
+                OUName = Path.Remove(0, i + 2)
+                Dim j As Integer = OUName.IndexOf("/", 0)
+                OUName = OUName.Remove(j)
+
+                'Specify the path.
+                Path = Path.Remove(i + 2, j + 1)
+            End If
+
+            Root = New DirectoryEntry(Path)
+            Root.RefreshCache()
+            OU = Root.Children.Add(OUName, "OrganizationalUnit")
+
+            OU.CommitChanges()
+            OU.Close()
+
+            LastStatus.CADS_ERRORCODE = SUCCESS
+            LastStatus.LastException = Nothing
+
+            Return True
+        Catch ex As Exception
+            LastStatus.CADS_ERRORCODE = ERROR_DIRECTORY.OTHER
+            LastStatus.LastException = ex
+
+            Return False
+        End Try
+
+    End Function
+
+    ''' <summary>
+    ''' Prompt user for their password.  The user's current Username is already filled-in
+    ''' </summary>
+    ''' <remarks>NOT IMPLEMENTED</remarks>
+    Public Sub GetInteractiveUserAuthenticationDetails(Optional ByVal ConnectToAD As Boolean = False)
+        Dim LoginForm As New frmLogin
+
+        LoginForm.ShowDialog()
+
+        GlobalSettings.InteractiveUserUsername = LoginForm.txtUsername.Text
+        GlobalSettings.InteractiveUserPassword =REDACTED
+
+        'If ConnectToADAM Then
+        'Else
+        'End If
+
+        LastStatus.CADS_ERRORCODE = ERROR_UNSPECIFIED.NOT_IMPLEMENTED
+        LastStatus.LastException = Nothing
+
+    End Sub
+
+    ''' <summary>
+    ''' Returns the list of Active Directory sites
+    ''' </summary>
+    ''' <returns>StringCollection of AD Site names</returns>
+    ''' <remarks>V1.0 D. Robinson</remarks>
+    Public Function GetADSitelist() As Collections.Specialized.StringCollection
+        Dim ADSitelist As New Collections.Specialized.StringCollection
+        Dim RootDSE As New Object
+        Dim ConfigurationNC As String
+        Dim SitesContainerName As String
+
+        RootDSE = GetObject("LDAP://RootDSE")
+        ConfigurationNC = RootDSE.Get("configurationNamingContext")
+
+        SitesContainerName = "LDAP://cn=Sites," & ConfigurationNC
+
+        Dim oSearcher As New DirectorySearcher()
+
+        Try
+            With oSearcher
+                .SearchRoot = New DirectoryEntry(SitesContainerName)
+                .SearchScope = SearchScope.Subtree
+                .Filter = "(objectClass=site)"
+            End With
+
+        Catch ex As Exception
+            ' If we can't get the list of sites, we are in trouble.
+            LastStatus.LastException = ex
+            LastStatus.CADS_ERRORCODE = m_Functions.ErrorResult(ERRORTYPE.DIRECTORY, ERROR_DIRECTORY.DIRECTORY_ERROR)
+        End Try
+
+        For Each Site As SearchResult In oSearcher.FindAll
+            ADSitelist.Add(Site.Properties("Name")(0).ToString)
+        Next
+
+        LastStatus.CADS_ERRORCODE = SUCCESS
+
+        Return ADSitelist
+    End Function
+
+    ''' <summary>
+    ''' Disables the given User DN
+    ''' </summary>
+    ''' <param name="UserDistinguishedName">The distinguishedName of the User to disable</param>
+    ''' <remarks>V1.0 D. Robinson</remarks>
+    Public Sub DisableUser(ByVal UserDistinguishedName As String)
+        Try
+            Dim User As New DirectoryEntry(UserDistinguishedName)
+            Dim Value As Int32 = User.Properties("userAccountControl").Value
+
+            User.Properties("userAccountControl").Value = Value Or 2
+
+            User.CommitChanges()
+            User.Close()
+            LastStatus.CADS_ERRORCODE = SUCCESS
+
+        Catch ex As Exception
+            LastStatus.LastException = ex
+            LastStatus.CADS_ERRORCODE = (m_Functions.ErrorResult(ERRORTYPE.DIRECTORY, ERROR_DIRECTORY.AUTHENTICATION_FAILURE))
+
+        End Try
+
+    End Sub
+
+    ''' <summary>
+    ''' Enables the given User DN
+    ''' </summary>
+    ''' <param name="UserDistinguishedName">The distinguishedName of the User to enable</param>
+    ''' <remarks>V1.0 D. Robinson</remarks>
+    Public Sub EnableUser(ByVal UserDistinguishedName As String)
+        Try
+            Dim User As New DirectoryEntry(UserDistinguishedName)
+            Dim Value As Int32 = User.Properties("userAccountControl").Value
+
+            User.Properties("userAccountControl").Value = Value And 2
+
+            User.CommitChanges()
+            User.Close()
+            LastStatus.CADS_ERRORCODE = SUCCESS
+
+        Catch ex As Exception
+            LastStatus.LastException = ex
+            LastStatus.CADS_ERRORCODE = m_Functions.ErrorResult(ERRORTYPE.DIRECTORY, ERROR_DIRECTORY.AUTHENTICATION_FAILURE)
+
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' Sets the manager property of the given User
+    ''' </summary>
+    ''' <param name="UserDistinguishedName">The distinguishedName of the User to modify</param>
+    ''' <param name="ManagerDistinguishedName">The distinguishedName of the Manager User</param>
+    ''' <remarks>V1.0 D. Robinson</remarks>
+    Public Sub SetManager(ByVal UserDistinguishedName As String, ByVal ManagerDistinguishedName As String)
+        Dim User As DirectoryEntry
+
+        If GlobalSettings.TargetDirectoryConnectionUsername = "" And (Not GlobalSettings.ConnectAnonymously) Then
+            LastStatus.CADS_ERRORCODE = m_Functions.ErrorResult(ERRORTYPE.DIRECTORY, ERROR_DIRECTORY.NO_USERNAME)
+
+        Else
+            Try
+                If GlobalSettings.ConnectAnonymously Then
+                    User = New DirectoryEntry(GlobalSettings.TargetDirectoryServerAndPort & UserDistinguishedName)
+                Else
+                    User = New DirectoryEntry(GlobalSettings.TargetDirectoryServerAndPort & UserDistinguishedName, GlobalSettings.TargetDirectoryConnectionUsername, GlobalSettings.TargetDirectoryConnectionPassword)
+                End If
+
+                User.Properties("manager").Value = ManagerDistinguishedName
+
+                User.CommitChanges()
+                User.Close()
+
+            Catch ex As Exception
+                Select Case ex.Message.ToString.Trim
+                    Case "A referral was returned from the server."
+                        LastStatus.LastException = ex
+                        LastStatus.CADS_ERRORCODE = m_Functions.ErrorResult(ERRORTYPE.SECURITY, ERROR_DIRECTORY.REFERRAL_RETURNED)
+
+                    Case "A local error has occurred."
+                        LastStatus.LastException = ex
+                        LastStatus.CADS_ERRORCODE = m_Functions.ErrorResult(ERRORTYPE.DIRECTORY, ERROR_DIRECTORY.DIRECTORY_ERROR)
+
+                    Case "Logon failure: unknown user name or bad password."
+                        LastStatus.LastException = ex
+                        LastStatus.CADS_ERRORCODE = m_Functions.ErrorResult(ERRORTYPE.SECURITY, ERROR_SECURITY.AUTHENTICATION_FAILURE)
+
+                    Case Else
+                        LastStatus.LastException = ex
+                        LastStatus.CADS_ERRORCODE = m_Functions.ErrorResult(ERRORTYPE.SECURITY, ERROR_SECURITY.AUTHENTICATION_FAILURE)
+
+                End Select
+
+            End Try
+        End If
+    End Sub
+
+    ''' <summary>
+    ''' Moves the User to the destination location
+    ''' </summary>
+    ''' <param name="UserDistinguishedName">The User distinguishedName</param>
+    ''' <param name="NewOUDistinguishedName">Destination OU distinguishedName</param>
+    ''' <remarks>V1.0 D. Robinson</remarks>
+    Public Sub MoveUser(ByVal UserDistinguishedName As String, ByVal NewOUDistinguishedName As String)
+        Try
+            Dim User As New DirectoryEntry(GlobalSettings.TargetDirectoryServerAndPort & UserDistinguishedName)
+            Dim DestinationOU As DirectoryEntry = New DirectoryEntry(GlobalSettings.TargetDirectoryServerAndPort & NewOUDistinguishedName)
+
+            User.MoveTo(DestinationOU)
+
+            User.Close()
+            DestinationOU.Close()
+            LastStatus.CADS_ERRORCODE = SUCCESS
+
+        Catch ex As Exception
+            LastStatus.CADS_ERRORCODE = m_Functions.ErrorResult(ERRORTYPE.DIRECTORY, ERROR_DIRECTORY.OTHER)
+            LastStatus.LastException = ex
+
+        End Try
+
+    End Sub
+
+    Public Sub SetCustomProperties(ByVal DistinguishedName As String, ByVal PropertyStringCollection As Collections.Specialized.StringCollection)
+        Dim User As DirectoryEntry
+
+        If TypeOf (PropertyStringCollection) Is System.Collections.Specialized.StringCollection Then
+            Try
+                If DistinguishedName.Length > 0 Then
+                    If GlobalSettings.TargetDirectoryConnectionUsername = "" And (Not GlobalSettings.ConnectAnonymously) Then
+                        LastStatus.CADS_ERRORCODE = m_Functions.ErrorResult(ERRORTYPE.DIRECTORY, ERROR_DIRECTORY.NO_USERNAME)
+
+                    Else
+
+                        If GlobalSettings.ConnectAnonymously Then
+                            User = New DirectoryEntry(GlobalSettings.TargetDirectoryServerAndPort & DistinguishedName)
+                        Else
+                            User = New DirectoryEntry(GlobalSettings.TargetDirectoryServerAndPort & DistinguishedName, GlobalSettings.TargetDirectoryConnectionUsername, GlobalSettings.TargetDirectoryConnectionPassword, AuthenticationTypes.ServerBind)
+                        End If
+
+                        User.RefreshCache()
+                        For Each UserProperty As String In PropertyStringCollection
+                            User.Properties("wbemPath").Add(UserProperty)
+                        Next
+
+                        User.CommitChanges()
+                        User.Close()
+                        LastStatus.CADS_ERRORCODE = SUCCESS
+
+                    End If
+                Else
+                    LastStatus.CADS_ERRORCODE = m_Functions.ErrorResult(UNSPECIFIED, ERROR_UNSPECIFIED.SYNTAX_ERROR)
+
+                End If
+
+            Catch ex As Exception
+                LastStatus.LastException = ex
+                LastStatus.CADS_ERRORCODE = m_Functions.ErrorResult(ERRORTYPE.DIRECTORY, ERROR_DIRECTORY.OTHER)
+
+            End Try
+        Else
+            LastStatus.CADS_ERRORCODE = m_Functions.ErrorResult(UNSPECIFIED, ERROR_UNSPECIFIED.WRONG_OBJECT_TYPE)
+
+        End If
+
+    End Sub
+
+    Public Function GetCustomProperties(ByVal DistinguishedName As String) As Collections.Specialized.StringCollection
+        Dim User As DirectoryEntry
+        Dim PropertyStringCollection As New Collections.Specialized.StringCollection
+
+        Try
+            If DistinguishedName.Length > 0 Then
+                If GlobalSettings.TargetDirectoryConnectionUsername = "" And (Not GlobalSettings.ConnectAnonymously) Then
+                    LastStatus.CADS_ERRORCODE = m_Functions.ErrorResult(ERRORTYPE.DIRECTORY, ERROR_DIRECTORY.NO_USERNAME)
+
+                    Return PropertyStringCollection
+                Else
+                    If GlobalSettings.ConnectAnonymously Then
+                        User = New DirectoryEntry(GlobalSettings.TargetDirectoryServerAndPort & DistinguishedName)
+                    Else
+                        User = New DirectoryEntry(GlobalSettings.TargetDirectoryServerAndPort & DistinguishedName, GlobalSettings.TargetDirectoryConnectionUsername, GlobalSettings.TargetDirectoryConnectionPassword, AuthenticationTypes.ServerBind)
+                    End If
+
+                    User.RefreshCache()
+
+                    Dim ValueCollection As PropertyValueCollection = User.Properties("wbemPath")
+                    Dim en As IEnumerator
+
+                    en = ValueCollection.GetEnumerator
+
+                    While en.MoveNext
+                        If en.Current IsNot Nothing Then
+                            PropertyStringCollection.Add(en.Current.ToString)
+                        End If
+                    End While
+
+                    User.Close()
+                    LastStatus.CADS_ERRORCODE = SUCCESS
+
+                    Return PropertyStringCollection
+                End If
+            Else
+                LastStatus.CADS_ERRORCODE = m_Functions.ErrorResult(UNSPECIFIED, ERROR_UNSPECIFIED.SYNTAX_ERROR)
+
+                Return PropertyStringCollection
+            End If
+
+        Catch ex As Exception
+            LastStatus.LastException = ex
+            LastStatus.CADS_ERRORCODE = m_Functions.ErrorResult(ERRORTYPE.DIRECTORY, ERROR_DIRECTORY.OTHER)
+
+            Return PropertyStringCollection
+        End Try
+    End Function
+
+#End Region
+
+End Class

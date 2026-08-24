@@ -1,0 +1,398 @@
+﻿Imports System.Runtime.Serialization
+Imports System.Runtime.Serialization.Formatters
+Imports System.Runtime.Serialization.Formatters.Binary
+Imports System.Runtime.Serialization.Formatters.Soap
+Imports Utility.CADS
+Imports Utility.CADS.Helper
+Imports Utility.CADS.Helper.ERROR_CONFIG
+Imports Utility.CADS.Helper.ERROR_CRYPT
+Imports Utility.CADS.Helper.ERROR_FILESYSTEM
+Imports Utility.CADS.Helper.ERROR_SECURITY
+Imports Utility.CADS.Helper.ERROR_DIRECTORY
+Imports Utility.CADS.Helper.ERROR_UNSPECIFIED
+Imports Utility.CADS.Helper.ERRORTYPE
+
+Namespace CADS
+
+    ''' <summary>
+    ''' Provides standard variables, structures and enums to all projects
+    ''' </summary>
+    ''' <remarks>V1.0  D. Robinson</remarks>
+    Public Class Helper
+
+#Region " Public constants "
+
+        Public Const DefaultStringValue As String = "[Empty]"
+        Public Const DefaultIntegerValue As Int32 = -1
+
+#End Region
+
+#Region " Public variables "
+
+#End Region
+
+        ' How to add another ErrorType:
+        ' 1.  Add the new type as an Enum to ERRORTYPE
+        ' 2.  Add a new Enum for this Type
+        ' 3.  Add a new ErrorResult() function that references this new Type
+        ' 4.  Modify the Case statement inside GetErrorTypeAndCode to include the new ERRORTYPE
+
+#Region " Error enums "
+
+        ''' <summary>
+        ''' CADS Specific Error types
+        ''' </summary>
+        ''' <remarks>V1.0  D. Robinson</remarks>
+        ''' 
+        Public Enum ERRORTYPE
+            SUCCESS = 0
+            FILESYSTEM = 1
+            CONFIG = 2
+            SECURITY = 3
+            CRYPT = 4
+            DIRECTORY = 5
+            UNSPECIFIED = 99
+        End Enum
+
+        Public Enum ERROR_FILESYSTEM
+            DIRECTORY_NOT_FOUND = 1
+            FILE_NOT_FOUND = 2
+            FILE_READ = 3
+            FILE_WRITE = 4
+            FILE_IO = 99
+        End Enum
+
+        Public Enum ERROR_CONFIG
+            SETTING_NOT_FOUND = 1
+            STRING_READ_ERROR = 2
+            INTEGER_READ_ERROR = 3
+            WRITE_NOT_SUPPORTED = 4
+            WRITE_ERROR = 5
+            WRITE_NOT_PERFORMED = 6
+            STRING_WRITE_ERROR = 7
+            INTEGER_EXPECTED_ERROR = 8
+            INTEGER_WRITE_ERROR = 9
+            SETTING_CREATE_ERROR = 10
+            SETTING_DELETE_ERROR = 11
+        End Enum
+
+        Public Enum ERROR_SECURITY
+            COULD_NOT_CREATE_OBJECT = 1
+            COULD_NOT_READ_OBJECT = 2
+            COULD_NOT_WRITE_OBJECT = 3
+            AUTHENTICATION_FAILURE = 5
+            GENERIC_SECURITY_ERROR = 99
+        End Enum
+
+        Public Enum ERROR_CRYPT
+            ENCRYPTION_ERROR = 1
+            DECRYPTION_ERROR = 2
+            GENERAL_ERROR = 3
+        End Enum
+
+        Public Enum ERROR_UNSPECIFIED
+            NOT_IMPLEMENTED = 1
+            SYNTAX_ERROR = 2
+            WRONG_OBJECT_TYPE = 3
+            NO_VALUES_SPECIFIED = 4
+            OTHER = 99
+        End Enum
+
+        Public Enum ERROR_DIRECTORY
+            REFERRAL_RETURNED = 1
+            DIRECTORY_ERROR = 2
+            NO_USERNAME = 3
+            NO_PASSWORD =REDACTED
+            AUTHENTICATION_FAILURE = 5
+            SERVER_NOT_FOUND = 6
+            UNSPECIFIED = 99
+        End Enum
+
+#End Region
+
+#Region " Error functions "
+
+        ''' <summary>
+        ''' Translates the ERROR_FILESYSTEM code into the CADS_ERRORCODE
+        ''' </summary>
+        ''' <param name="ErrorType">One of the defined CADS_ERROR_TYPES</param>
+        ''' <param name="ErrorNumber">The ERROR_FILESYSTEM value to translate</param>
+        ''' <returns>The CADS_ERRORCODE</returns>
+        ''' <remarks>V1.0  D. Robinson</remarks>
+        Public Function ErrorResult(ByVal ErrorType As ERRORTYPE, ByVal ErrorNumber As ERROR_FILESYSTEM) As Int32
+            Dim Result As Int32 = (ErrorType * (2 ^ 16)) + ErrorNumber
+
+            Return Result
+        End Function
+
+        ''' <summary>
+        ''' Translates the ERROR_CONFIG code into the CADS_ERRORCODE
+        ''' </summary>
+        ''' <param name="ErrorType">One of the defined CADS_ERROR_TYPES</param>
+        ''' <param name="ErrorNumber">The ERROR_CONFIG value to translate</param>
+        ''' <returns>The CADS_ERRORCODE</returns>
+        ''' <remarks>V1.0  D. Robinson</remarks>
+        Public Function ErrorResult(ByVal ErrorType As ERRORTYPE, ByVal ErrorNumber As ERROR_CONFIG) As Int32
+            Dim Result As Int32 = (ErrorType * (2 ^ 16)) + ErrorNumber
+
+            Return Result
+        End Function
+
+        ''' <summary>
+        ''' Translates the ERROR_SECURITY code into the CADS_ERRORCODE
+        ''' </summary>
+        ''' <param name="ErrorType">One of the defined CADS_ERROR_TYPES</param>
+        ''' <param name="ErrorNumber">The ERROR_SECURITY value to translate</param>
+        ''' <returns>The CADS_ERRORCODE</returns>
+        ''' <remarks>V1.0  D. Robinson</remarks>
+        Public Function ErrorResult(ByVal ErrorType As ERRORTYPE, ByVal ErrorNumber As ERROR_SECURITY) As Int32
+            Dim Result As Int32 = (ErrorType * (2 ^ 16)) + ErrorNumber
+
+            Return Result
+        End Function
+
+        ''' <summary>
+        ''' Translates the ERROR_UNSPECIFIED code into the CADS_ERRORCODE
+        ''' </summary>
+        ''' <param name="ErrorType">One of the defined CADS_ERROR_TYPES</param>
+        ''' <param name="ErrorNumber">The ERROR_UNSPECIFIED value to translate</param>
+        ''' <returns>The CADS_ERRORCODE</returns>
+        ''' <remarks>V1.0  D. Robinson</remarks>
+        Public Function ErrorResult(ByVal ErrorType As ERRORTYPE, ByVal ErrorNumber As ERROR_UNSPECIFIED) As Int32
+            Dim Result As Int32 = (ErrorType * (2 ^ 16)) + ErrorNumber
+
+            Return Result
+        End Function
+
+        ''' <summary>
+        ''' Translates the ERROR_CRYPT code into the CADS_ERRORCODE
+        ''' </summary>
+        ''' <param name="ErrorType">One of the defined CADS_ERROR_TYPES</param>
+        ''' <param name="ErrorNumber">The ERROR_CRYPT value to translate</param>
+        ''' <returns>The CADS_ERRORCODE</returns>
+        ''' <remarks>V1.0  D. Robinson</remarks>
+        Public Function ErrorResult(ByVal ErrorType As ERRORTYPE, ByVal ErrorNumber As ERROR_CRYPT) As Int32
+            Dim Result As Int32 = (ErrorType * (2 ^ 16)) + ErrorNumber
+
+            Return Result
+        End Function
+
+        ''' <summary>
+        ''' Translates the ERROR_DIRECTORY code into the CADS_ERRORCODE
+        ''' </summary>
+        ''' <param name="ErrorType">One of the defined CADS_ERROR_TYPES</param>
+        ''' <param name="ErrorNumber">The ERROR_DIRECTORY value to translate</param>
+        ''' <returns>The CADS_ERRORCODE</returns>
+        ''' <remarks>V1.0  D. Robinson</remarks>
+        Public Function ErrorResult(ByVal ErrorType As ERRORTYPE, ByVal ErrorNumber As ERROR_DIRECTORY) As Int32
+            Dim Result As Int32 = (ErrorType * (2 ^ 16)) + ErrorNumber
+
+            Return Result
+        End Function
+
+        ''' <summary>
+        ''' Function to return the text value based on the index provided
+        ''' </summary>
+        ''' <param name="ErrorCode">The value we're looking for</param>
+        ''' <returns>A description of the Error</returns>
+        ''' <remarks>V1.1 D. Robinson</remarks>
+        Public Function GetErrorTypeAndCode(ByVal ErrorCode As Int32) As String
+            Dim ErrorString As String = ""
+            ' The passed-in Error code has two portions:
+            ' 1. Error type
+            ' 2. Error code (local)
+
+            ' Firstly, extract the type
+            Dim ErrorType As Int16 = (ErrorCode / (2 ^ 16))
+            ErrorString = "(" & [Enum].GetName(GetType(ERRORTYPE), ErrorType) & ") "
+
+            ' Now determine the code
+            Dim Remainder As Int16 = ErrorCode - (ErrorType * (2 ^ 16))
+
+            ' The output will look something like the following:
+            ' "(ERROR_FILESYSTEM) DIRECTORY_NOT_FOUND"
+            Select Case ErrorType
+                Case 1
+                    ErrorString &= [Enum].GetName(GetType(ERROR_FILESYSTEM), Remainder)
+                Case 2
+                    ErrorString &= [Enum].GetName(GetType(ERROR_CONFIG), Remainder)
+                Case 3
+                    ErrorString &= [Enum].GetName(GetType(ERROR_SECURITY), Remainder)
+                Case 4
+                    ErrorString &= [Enum].GetName(GetType(ERROR_CRYPT), Remainder)
+                Case 5
+                    ErrorString &= [Enum].GetName(GetType(ERROR_DIRECTORY), Remainder)
+                Case 99
+                    ErrorString &= [Enum].GetName(GetType(ERROR_UNSPECIFIED), Remainder)
+                Case Else
+                    ErrorString &= "UNSUPPORTED_ERROR_VALUE"
+            End Select
+
+            Return ErrorString
+        End Function
+
+#End Region
+
+#Region " Telephony enums "
+
+        Public Enum TelephoneType
+            Mobile = 2
+            Fixed = 4
+            Pager = 5
+            Fax = 10
+            OfficeExtension = 11
+            Home = 12
+        End Enum
+
+#End Region
+
+#Region " Telephony Structures "
+
+        Public Structure ExtensionRange
+            Dim StartNumber As String
+            Dim FinishNumber As String
+        End Structure
+
+        Public Structure StreetAddress
+            Dim Number As String
+            Dim Street As String
+            Dim Suburb As String
+            Dim State As String
+            Dim Postcode As String
+            Dim Country As String
+        End Structure
+
+        Public Structure CostCentre
+            Dim ID As Int32
+            Dim Code As String
+            Dim Manager As String
+        End Structure
+
+        Public Structure PhysicalLocation
+            Dim ID As Int32
+            Dim Name As String
+            Dim Description As String
+            Dim Address As StreetAddress
+            Dim Manager As String
+            Dim PABX As PABXInformation()
+            Dim CostCentre As CostCentre
+        End Structure
+
+        Public Structure PABXInformation
+            Dim ExtensionRange As ExtensionRange()
+            Dim IndialRange As ExtensionRange()
+            Dim Costcode As String
+            Dim SiteAccessCode As String
+        End Structure
+
+        Public Structure Phone
+            Dim Number As String
+            Dim Manager As String
+            Dim Department As String
+            Dim Location As String
+            Dim DirectoryPath As String
+            Dim User As String
+            Dim PhoneType As TelephoneType
+        End Structure
+
+#End Region
+
+#Region " General functions "
+
+        ''' <summary>
+        ''' Saves an object to disk
+        ''' </summary>
+        ''' <param name="Filename">The output filename</param>
+        ''' <param name="ObjectToSerialize">An object to serialize</param>
+        ''' <returns>SUCCESS or CADS_ERRORCODE</returns>
+        ''' <remarks>V1.0  D. Robinson</remarks>
+        Public Function Serialize(ByVal Filename As String, ByVal ObjectToSerialize As Object) As Int32
+            Dim fs As New IO.FileStream(Filename, System.IO.FileMode.Create)
+            Dim formatter As New Formatters.Soap.SoapFormatter
+
+            Try
+                formatter.Serialize(fs, ObjectToSerialize)
+
+                fs.Close()
+                fs = Nothing
+                Return SUCCESS
+            Catch ex As Exception
+                Return ErrorResult(FILESYSTEM, FILE_WRITE)
+            End Try
+        End Function
+
+        ''' <summary>
+        ''' Loads an object from disk
+        ''' </summary>
+        ''' <param name="PathAndFilename">The input filename</param>
+        ''' <param name="DeserializedObject">The deserialized object</param>
+        ''' <returns>SUCCESS or CADS_ERRORCODE</returns>
+        ''' <remarks>V1.0  D. Robinson</remarks>
+        Public Function Deserialize(ByVal PathAndFilename As String, ByRef DeserializedObject As Object) As Int32
+            Dim fs As New IO.FileStream(PathAndFilename, System.IO.FileMode.Open)
+            Dim formatter As New Formatters.Soap.SoapFormatter
+
+            Try
+                DeserializedObject = formatter.Deserialize(fs)
+
+                fs.Flush()
+                fs.Close()
+                Return SUCCESS
+            Catch ex As Exception
+                Return ErrorResult(FILESYSTEM, FILE_READ)
+            End Try
+        End Function
+
+        ''' <summary>
+        ''' Returns a string representation of the input string collection, separated by the Separator character
+        ''' </summary>
+        ''' <param name="InputCollection">The Input StringCollection</param>
+        ''' <param name="Separator">The input Separator to use</param>
+        ''' <returns>String</returns>
+        ''' <remarks>V1.0 D. Robinson</remarks>
+        Public Function StringFromStringCollection(ByVal InputCollection As Specialized.StringCollection, ByVal Separator As String) As String
+            Dim OutputString As String = ""
+
+            For Each InputString As String In InputCollection
+                OutputString &= InputString & Separator
+            Next
+
+            If Right(OutputString, Len(Separator)) = Separator Then ' remove last separator character(s)
+                OutputString = Left(OutputString, Len(OutputString) - Len(Separator))
+            End If
+
+            Return OutputString.Trim
+        End Function
+
+        ''' <summary>
+        ''' Returns a string representation of the input string collection, separated by the Separator character
+        ''' </summary>
+        ''' <param name="InputCollection">The Input StringCollection</param>
+        ''' <param name="Separator">The input Separator to use</param>
+        ''' <returns>String</returns>
+        ''' <remarks>V1.0 D. Robinson</remarks>
+        Public Function StringFromNameValueCollection(ByVal InputCollection As Specialized.NameValueCollection, ByVal Separator As String) As String
+            Dim OutputString As String = ""
+            Dim StringKey As String
+            Dim StringValue As String
+
+            Dim i As Int16
+
+            For Each StringKey In InputCollection.Keys
+                i += 1
+                StringValue = InputCollection.GetValues(StringKey)(0)
+                OutputString &= StringValue & Separator
+            Next
+
+            If Right(OutputString, Len(Separator)) = Separator Then ' remove last separator character(s)
+                OutputString = Left(OutputString, Len(OutputString) - Len(Separator))
+            End If
+
+            Return OutputString.Trim
+        End Function
+
+#End Region
+
+    End Class
+
+End Namespace

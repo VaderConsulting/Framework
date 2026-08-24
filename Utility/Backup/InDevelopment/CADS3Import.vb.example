@@ -1,0 +1,326 @@
+﻿Imports System
+Imports System.Text
+Imports System.Windows.Forms
+Imports System.DirectoryServices
+
+Public Class CADS3Import
+
+#Region " Constants "
+
+    ' Set the number of Steps here and in DoNextStep()
+    Private Const NUMBER_OF_STEPS As Int16 = 6
+
+#End Region
+
+#Region " Private variables "
+
+    Private m_CurrentStep As Int16 = 1 ' Allows us to start at a step other than 1
+    Private m_SourceFilename As String = ""
+    Private m_DestinationLDAPPath As String = ""
+    Private m_ConnectionDomain As String = ""
+    Private m_ConnectionUsername As String = ""
+    Private m_ConnectionPassword As String = ""
+
+#End Region
+
+#Region " Public Properties "
+
+    Public Property StepNumber() As Int16
+        Get
+            Return m_CurrentStep
+        End Get
+        Set(ByVal value As Int16)
+            m_CurrentStep = value
+        End Set
+    End Property
+
+    Public ReadOnly Property DestinationLDAPPath() As String
+        Get
+            Return m_DestinationLDAPPath
+        End Get
+
+    End Property
+
+    Public ReadOnly Property SourceFilename()
+        Get
+            Return m_SourceFilename
+        End Get
+    End Property
+
+    Public ReadOnly Property ConnectionDomain() As String
+        Get
+            Return m_ConnectionDomain
+        End Get
+    End Property
+
+    Public ReadOnly Property ConnectionUsername() As String
+        Get
+            Return m_ConnectionUsername
+        End Get
+    End Property
+
+    Public ReadOnly Property ConnectionPassword() As String
+        Get
+            Return m_ConnectionPassword
+        End Get
+    End Property
+
+#End Region
+
+#Region " Constructor "
+
+    Public Sub New()
+
+        ' This call is required by the Windows Form Designer.
+        InitializeComponent()
+
+        ' Add any initialization after the InitializeComponent() call.
+        DoNextStep()
+    End Sub
+
+#End Region
+
+#Region " GUI Elements "
+
+    Private Sub Import_Load(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles MyBase.Load
+        ' Setup correct width and height
+        Me.Width = 498
+        Me.Height = 388
+
+        ' Insert default values
+        txtUsername.Text = My.User.Name.Substring(My.User.Name.IndexOf("\") + 1)
+        txtDomain.Text = My.Application.GetEnvironmentVariable("USERDOMAIN").ToString
+    End Sub
+
+    Private Sub btnNext_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles btnNext.Click
+        Select Case btnNext.Text
+            Case "Next"
+                m_CurrentStep += 1
+                DoNextStep()
+            Case "Finish"
+                SaveUserSettings()
+                MsgBox("TODO: Finish the Wizard")
+                Me.Close()
+        End Select
+
+    End Sub
+
+    Private Sub btnBack_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles btnBack.Click
+        m_CurrentStep -= 1
+        DoNextStep()
+    End Sub
+
+    Private Sub btnBrowse_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles btnBrowse.Click
+        Dim fd As New System.Windows.Forms.OpenFileDialog
+
+        If optImportTypeCSV.Checked Then fd.Filter = "Comma Separated Value Files|*.csv"
+        If optImportTypeTab.Checked Then fd.Filter = "Tab Separated Value Files|*.tab"
+
+        fd.ShowDialog()
+        txtFilename.Text = fd.FileName
+    End Sub
+
+    Private Sub optImportTypeTab_CheckedChanged(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles optImportTypeTab.CheckedChanged
+        btnNext.Enabled = True
+    End Sub
+
+    Private Sub optImportTypeCSV_CheckedChanged(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles optImportTypeCSV.CheckedChanged
+        btnNext.Enabled = True
+    End Sub
+
+    Private Sub btnConnect_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles btnConnect.Click
+        ' Connect to AD
+        Dim Root As DirectoryEntry
+
+        tvwDirectory.Nodes.Clear()
+
+        Root = New DirectoryEntry(Me.txtLDAPPath.Text)
+        Root.RefreshCache()
+
+        ' Now populate the treeview
+        FillActiveDirectoryTreeView(Me.tvwDirectory, Root)
+    End Sub
+
+#End Region
+
+#Region " Other methods "
+
+    Private Sub DoNextStep()
+        Dim sb As New Text.StringBuilder
+
+        Select Case m_CurrentStep
+            Case 1 ' Start step
+                btnBack.Enabled = False
+                btnNext.Enabled = True
+                pnlStep1.Top = 0
+                pnlStep1.Left = 166
+                pnlStep2.Left = 1000
+                pnlStep3.Left = 1000
+                pnlStep4.Left = 1000
+                pnlStep5.Left = 1000
+                pnlStep6.Left = 1000
+                btnBack.Enabled = True
+                btnNext.Text = "Next"
+            Case 2
+                btnBack.Enabled = True
+                btnNext.Enabled = True
+                pnlStep1.Left = 1000
+                pnlStep2.Left = 166
+                pnlStep2.Top = 0
+                pnlStep3.Left = 1000
+                pnlStep4.Left = 1000
+                pnlStep5.Left = 1000
+                pnlStep6.Left = 1000
+                If optImportTypeCSV.Checked = False And optImportTypeTab.Checked = False Then btnNext.Enabled = False
+                btnNext.Text = "Next"
+            Case 3
+                btnBack.Enabled = True
+                btnNext.Enabled = True
+                pnlStep1.Left = 1000
+                pnlStep2.Left = 1000
+                pnlStep3.Left = 166
+                pnlStep3.Top = 0
+                pnlStep4.Left = 1000
+                pnlStep5.Left = 1000
+                pnlStep6.Left = 1000
+                txtFilename.Focus()
+                btnBack.Enabled = True
+                btnNext.Text = "Next"
+            Case 4
+                btnBack.Enabled = True
+                btnNext.Enabled = True
+                pnlStep1.Left = 1000
+                pnlStep2.Left = 1000
+                pnlStep3.Left = 1000
+                pnlStep4.Top = 0
+                pnlStep4.Left = 166
+                pnlStep5.Left = 1000
+                pnlStep6.Left = 1000
+                txtLDAPPath.Focus()
+                btnNext.Text = "Next"
+            Case 5
+                btnBack.Enabled = True
+                btnNext.Enabled = True
+                pnlStep1.Left = 1000
+                pnlStep2.Left = 1000
+                pnlStep3.Left = 1000
+                pnlStep4.Left = 1000
+                pnlStep5.Top = 0
+                pnlStep5.Left = 166
+                pnlStep6.Left = 1000
+                txtPassword.Focus()
+                btnNext.Text = "Next"
+            Case 6
+                btnBack.Enabled = True
+                btnNext.Enabled = True
+                pnlStep1.Left = 1000
+                pnlStep2.Left = 1000
+                pnlStep3.Left = 1000
+                pnlStep4.Left = 1000
+                pnlStep5.Left = 1000
+                pnlStep6.Top = 0
+                pnlStep6.Left = 166
+                sb.AppendLine("Source filename:")
+                sb.AppendLine(Me.txtFilename.Text)
+                sb.AppendLine("Destination Path:")
+                sb.AppendLine(Me.txtLDAPPath.Text)
+                sb.Append("Username: "REDACTED"\") : sb.AppendLine(txtUsername.Text)
+                sb.AppendLine("Password: [Provided]")
+                txtDetails.Text = sb.ToString
+                btnNext.Text = "Finish"
+        End Select
+
+        Me.Text = "Import Wizard - Step " & m_CurrentStep & " of " & NUMBER_OF_STEPS
+
+        m_DestinationLDAPPath = txtLDAPPath.Text
+        m_SourceFilename = txtFilename.Text
+        m_ConnectionDomain = txtDomain.Text
+        m_ConnectionUsername = txtUsername.Text
+        m_ConnectionPassword =REDACTED
+    End Sub
+
+    Private Sub SaveUserSettings()
+        ' Save to the Local Application config file
+        My.Settings.Save()
+    End Sub
+
+    Sub FillActiveDirectoryTreeView(ByRef tvw As TreeView, ByVal TopLevelDirEntries As DirectoryEntry)
+        Dim DirEntry As DirectoryEntry
+        Dim Nd As TreeNode
+
+        ' Fill the treeview with all containers and OU's off the root
+
+        Try
+            For Each DirEntry In TopLevelDirEntries.Children
+                Nd = New TreeNode(DirEntry.Name.Remove(0, 3))
+                Select Case DirEntry.SchemaClassName
+                    Case "builtinDomain", "organizationalUnit", "container"
+                        Select Case Nd.Text
+                            Case "Builtin", "Computers", "Domain Controllers"
+                                ' Do no more with these objects
+                            Case "ForeignSecurityPrincipals", "Program Data", "System"
+                                ' Do no more with these objects
+                            Case Else
+                                Nd.Tag = DirEntry
+                                tvw.Nodes.Add(Nd)
+                                FillADTreeNode(Nd)
+                                Nd.Tag = DirEntry.Path
+                        End Select
+                    Case Else
+                        ' We don't want anything to do with the other objects
+                End Select
+
+            Next
+        Catch ex As Exception
+            Debug.Print("Error traversing Directory")
+        End Try
+    End Sub
+
+    Sub FillADTreeNode(ByRef ADNode As TreeNode)
+        Dim DirEntry As DirectoryEntry
+        Dim RootEntry As DirectoryEntry = CType(ADNode.Tag, DirectoryEntry)
+        Dim Nd As TreeNode
+
+        ' Fill the treeview with all containers and OU's within each root node
+
+        For Each DirEntry In RootEntry.Children
+            Nd = New TreeNode(DirEntry.Name.Remove(0, 3)) '  Remove "CN="
+            Try
+                Select Case DirEntry.SchemaClassName
+                    Case "builtinDomain", "organizationalUnit", "container"
+                        Select Case Nd.Text
+                            Case "Builtin", "Computers", "Domain Controllers"
+                                ' Do no more with these objects
+                            Case "ForeignSecurityPrincipals", "Program Data", "System"
+                                ' Do no more with these objects
+                            Case Else
+                                Nd.Tag = DirEntry
+                                ADNode.Nodes.Add(Nd)
+                                FillADTreeNode(Nd)
+                                Nd.Tag = DirEntry.Path
+                        End Select
+
+                    Case Else
+                        ' We don't want anything to do with the other objects
+                End Select
+            Catch ex As Exception
+                Debug.Print("Exception traversing Directory")
+            End Try
+        Next
+
+    End Sub
+
+    Private Sub tvwDirectory_AfterSelect(ByVal sender As System.Object, ByVal e As System.Windows.Forms.TreeViewEventArgs) Handles tvwDirectory.AfterSelect
+        If tvwDirectory.SelectedNode.Tag = Nothing Then
+        Else
+            Dim Path As String = tvwDirectory.SelectedNode.Tag
+
+            txtSelectedNode.Text = Path
+        End If
+
+    End Sub
+
+#End Region
+
+
+End Class

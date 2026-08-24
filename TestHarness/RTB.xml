@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:wsa="http://www.w3.org/2005/08/addressing">
+        <soapenv:Header>
+                <wsa:To>customerURL</wsa:To>
+                <wsa:MessageID>urn:uuid:FE6DEAEB74998D449B1205285273494</wsa:MessageID>
+                <wsa:Action>""</wsa:Action>
+        </soapenv:Header>
+        <soapenv:Body>
+                <ns1:callEvent xmlns:ns1="urn:rtbCallEvent/types">
+                <recorded>3766844e97b920080312010725.1001+110000</recorded>
+                <direction>Originating</direction>
+                <callingNumber>+61386023766</callingNumber>
+                <calledNumber>0386023768</calledNumber>
+                <answerTime>20080312010725</answerTime>
+                <releaseTime>20080312010755</releaseTime>
+                <group>GroupName</group></ns1:callEvent>
+        </soapenv:Body>
+</soapenv:Envelope>

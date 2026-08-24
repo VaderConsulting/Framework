@@ -1,0 +1,80 @@
+﻿
+Public Class frmLogin
+
+    Private m_InteractiveUserUsername As String
+    Private m_InteractiveUserPassword As String
+    Private m_InteractiveUserIsAuthenticated As Boolean
+
+    Public Property InteractiveUserUsername() As String
+        Get
+            Return m_InteractiveUserUsername
+        End Get
+        Set(ByVal value As String)
+            m_InteractiveUserUsername = value
+        End Set
+    End Property
+
+    Public Property InteractiveUserPassword()
+        Get
+            Return m_InteractiveUserPassword
+        End Get
+        Set(ByVal value)
+            m_InteractiveUserPassword =REDACTED
+        End Set
+    End Property
+
+    Public Property InteractiveUserIsAuthenticated() As Boolean
+        Get
+            Return m_InteractiveUserIsAuthenticated
+        End Get
+        Set(ByVal value As Boolean)
+            m_InteractiveUserIsAuthenticated = value
+        End Set
+    End Property
+
+    Public AllowWindowsLogon As Boolean = False
+
+    Private Sub OK_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles OK.Click
+        m_InteractiveUserUsername = txtUsername.Text.Trim
+        m_InteractiveUserPassword =REDACTED
+        DialogResult = Windows.Forms.DialogResult.OK
+    End Sub
+
+    Private Sub Cancel_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles Cancel.Click
+        InteractiveUserIsAuthenticated = False
+        DialogResult = Windows.Forms.DialogResult.Cancel
+    End Sub
+
+    Private Sub frmLogin_FormClosing(ByVal sender As Object, ByVal e As System.Windows.Forms.FormClosingEventArgs) Handles Me.FormClosing
+        If e.CloseReason = Windows.Forms.CloseReason.UserClosing Then DialogResult = Windows.Forms.DialogResult.Cancel
+    End Sub
+
+    Private Sub frmLogin_Load(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles MyBase.Load
+        Me.Text = My.Application.Info.Title & " - Logon"
+        Me.Show()
+
+        If AllowWindowsLogon Then
+            Me.txtUsername.Text = My.User.Name
+            Me.txtPassword.Focus()
+        Else
+            Me.txtUsername.Focus()
+        End If
+    End Sub
+
+    Private Sub txtUsername_TextChanged(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles txtUsername.TextChanged
+        Me.lblIncorrect.Visible = False
+        If txtUsername.Text.Trim.Length > 0 Then
+            OK.Enabled = True
+        Else
+            OK.Enabled = False
+        End If
+    End Sub
+
+    Private Sub txtUsername_Enter(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles txtUsername.Enter
+        txtUsername.SelectAll()
+    End Sub
+
+    Private Sub txtPassword_Enter(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles txtPassword.Enter
+        txtPassword.SelectAll()
+    End Sub
+End Class

@@ -1,0 +1,644 @@
+﻿Imports Utility
+Imports InDevelopment
+Imports System.DirectoryServices
+
+Public Class frmLogin
+
+    Private gFunctions As New Functions
+    Private gSettings As New Collections.Specialized.OrderedDictionary
+
+    Private Structure SettingsListItem
+        Dim Index As Integer
+        Dim Filename As String
+        Dim Section As String
+        Dim Setting As String
+        Dim Value As String
+
+        Overrides Function ToString() As String
+            Return Section
+        End Function
+    End Structure
+
+    Private Sub Form1_Load(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles MyBase.Load
+        PerformLogon()
+        LoadLogonSettings()
+        LoadComboItems()
+
+        btnLoadSection.Enabled = False
+    End Sub
+
+    Private Sub ImportCADS3Users(ByVal Source As String, ByVal Destination As String, ByVal Domain As String, ByVal Username As String, ByVal Password As String)
+        Dim oAD As Utility.Functions = New Utility.Functions
+
+        Dim Surname As String = "Bloggs"
+        Dim Firstname As String = "Fred"
+        Dim Department As String = "Here"
+
+        Dim CNFormat As String = "#SURNAME#, #FIRSTNAME# (#DEPARTMENT#)"
+
+        Dim TranslatedString As String = ""
+        TranslatedString = TranslatedString.ToUpper.Replace("#SURNAME#", Surname)
+        TranslatedString = TranslatedString.ToUpper.Replace("#FIRSTNAME#", Firstname)
+        TranslatedString = TranslatedString.ToUpper.Replace("#DEPARTMENT#", Department)
+
+        TranslatedString = "Bloggs, Fred (Here)"
+    End Sub
+
+    Private Sub PerformLogon()
+        gFunctions.UpdateCADSConfigFile()      ' Copy cads.config to my PC
+
+        Dim LogonResult As String = ""
+        'LogonResult = gFunctions.DoLogon("Operator", "OperatorPassword", False)
+        LogonResult = gFunctions.DoLogon()
+        If LogonResult = Constants.DEFAULTSTRINGVALUE Then
+            MsgBox("Your logon attempt has failed.")
+            End
+        End If
+
+        Me.Text = "Settings Loader (" & gFunctions.InteractiveUserUsername & ")"
+
+    End Sub
+
+    Private Sub LoadLogonSettings()
+        lstSettings.Items.Clear()
+
+        gFunctions.CloneCollection(gFunctions.ConfigSettings, gSettings)  ' Get the Users settings into a collection so I can retrieve values directly
+
+        Dim SettingNames As ICollection = gSettings.Keys
+        Dim SettingValues As ICollection = gSettings.Values
+        Dim iCounter As Int16 = 0
+
+        For Each Field As String In gSettings.Values
+            Dim SettingName As String = ""
+            Dim SettingValue As String = ""
+
+            SettingName = SettingNames(iCounter)
+            SettingValue = SettingValues(iCounter)
+            lstSettings.Items.Add(SettingName & "=" & SettingValue)
+            iCounter += 1
+        Next
+
+        UpdateListboxCount()
+
+        btnLoadSection.Enabled = True
+    End Sub
+
+    Private Sub LoadComboItems()
+        Dim SettingsCollection As New Collections.SortedList
+        Dim Item As New SettingsListItem
+        Dim Index As Integer = 0
+
+        Item.Index = Index
+        Item.Filename = "cads.config"
+        Item.Section = "SystemSettings"
+        Me.cmbSectionNames.Items.Add(Item)
+        Index += 1
+        ' ------------------------------------
+        Item.Index = Index
+        Item.Filename = "cads.config"
+        Item.Section = "ConsoleApplications"
+        Me.cmbSectionNames.Items.Add(Item)
+        Index += 1
+        ' ------------------------------------
+        Item.Index = Index
+        Item.Filename = "cads.config"
+        Item.Section = "SystemSecurityLevels"
+        Me.cmbSectionNames.Items.Add(Item)
+        Index += 1
+        ' ------------------------------------
+        Item.Index = Index
+        Item.Filename = "cads.config"
+        Item.Section = "DirectoryServer"
+        Me.cmbSectionNames.Items.Add(Item)
+        Index += 1
+        ' ------------------------------------
+        Item.Index = Index
+        Item.Filename = "cads.config"
+        Item.Section = "SystemThemes"
+        Me.cmbSectionNames.Items.Add(Item)
+        Index += 1
+        ' ------------------------------------
+        Item.Index = Index
+        Item.Filename = "cads.config"
+        Item.Section = "DirectoryAttributes"
+        Me.cmbSectionNames.Items.Add(Item)
+        Index += 1
+        ' ------------------------------------
+        Item.Index = Index
+        Item.Filename = "cads.config"
+        Item.Section = "UserAttributes"
+        Me.cmbSectionNames.Items.Add(Item)
+        Index += 1
+        ' ------------------------------------
+        Item.Index = Index
+        Item.Filename = "cads.config"
+        Item.Section = "PhoneAttributes"
+        Me.cmbSectionNames.Items.Add(Item)
+        Index += 1
+
+        ' ####################################
+        Item.Index = Index
+        Item.Filename = "Users\" & gFunctions.InteractiveUserUsername & ".config"
+        Item.Section = "DirectoryAttributeSecurity"
+        Me.cmbSectionNames.Items.Add(Item)
+        Index += 1
+        ' ------------------------------------
+        Item.Index = Index
+        Item.Filename = "Users\" & gFunctions.InteractiveUserUsername & ".config"
+        Item.Section = "ConsoleUserSettings"
+        Me.cmbSectionNames.Items.Add(Item)
+        Index += 1
+        ' ------------------------------------
+        Item.Index = Index
+        Item.Filename = "Users\" & gFunctions.InteractiveUserUsername & ".config"
+        Item.Section = "DirectorySettings"
+        Me.cmbSectionNames.Items.Add(Item)
+        Index += 1
+        ' ------------------------------------
+        Item.Index = Index
+        Item.Filename = "Users\" & gFunctions.InteractiveUserUsername & ".config"
+        Item.Section = "ConsoleSearchFields"
+        Me.cmbSectionNames.Items.Add(Item)
+        Index += 1
+        ' ------------------------------------
+        Item.Index = Index
+        Item.Filename = "Users\" & gFunctions.InteractiveUserUsername & ".config"
+        Item.Section = "ConsoleUserDetailFields"
+        Me.cmbSectionNames.Items.Add(Item)
+        Index += 1
+        ' ------------------------------------
+        Item.Index = Index
+        Item.Filename = "Users\" & gFunctions.InteractiveUserUsername & ".config"
+        Item.Section = "ConsolePhoneDetailFields"
+        Me.cmbSectionNames.Items.Add(Item)
+        Index += 1
+        ' ------------------------------------
+        Item.Index = Index
+        Item.Filename = "Users\" & gFunctions.InteractiveUserUsername & ".config"
+        Item.Section = "ConsoleNewUserFields"
+        Me.cmbSectionNames.Items.Add(Item)
+        Index += 1
+        ' ------------------------------------
+        Item.Index = Index
+        Item.Filename = "Users\" & gFunctions.InteractiveUserUsername & ".config"
+        Item.Section = "ConsoleNewPhoneFields"
+        Me.cmbSectionNames.Items.Add(Item)
+        Index += 1
+        ' ------------------------------------
+    End Sub
+
+    Private Sub btnLoadSection_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles btnLoadSection.Click
+        If cmbSectionNames.Text.Length = 0 Then Exit Sub
+
+        Dim Filename As String = Me.cmbSectionNames.SelectedItem.Filename
+        Dim SectionName As String = Me.cmbSectionNames.SelectedItem.Section
+
+        Me.txtCode.Text = "Dim m_Functions as new Functions" & vbCrLf
+        Me.txtCode.Text &= "" & vbCrLf
+        Me.txtCode.Text &= "m_Functions.ConfigFilenameAndPath = My.Application.Info.DirectoryPath & " & Chr(34) & "\" & Filename & Chr(34) & vbCrLf
+        Me.txtCode.Text &= "m_Functions.LoadConfigSection(" & Chr(34) & SectionName & Chr(34) & ")"
+
+        gFunctions.ConfigFilenameAndPath = My.Application.Info.DirectoryPath & "\" & Filename
+        LoadSection(cmbSectionNames.Text)
+    End Sub
+
+    Private Sub LoadSection(ByVal SectionName As String)
+        Dim TempCollection As New Collections.Specialized.OrderedDictionary
+
+        gFunctions.LoadConfigSection(SectionName)
+
+        gFunctions.CloneCollection(gFunctions.ConfigContents, TempCollection)
+
+        Dim SettingNames As ICollection = TempCollection.Keys
+        Dim SettingValues As ICollection = TempCollection.Values
+        Dim iCounter As Int16 = 0
+
+        For Each Field As String In TempCollection.Values
+            Dim SettingName As String = ""
+            Dim SettingValue As String = ""
+
+            SettingName = SettingNames(iCounter)
+            SettingValue = SettingValues(iCounter)
+            lstSettings.Items.Add(SettingName & "=" & SettingValue)
+            iCounter += 1
+        Next
+
+        UpdateListboxCount()
+
+        btnLoadSection.Enabled = False
+    End Sub
+
+    Private Sub btnClear_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles btnClear.Click
+        lstSettings.Items.Clear()
+        UpdateListboxCount()
+    End Sub
+
+    Private Sub UpdateListboxCount()
+        lblCount.Text = lstSettings.Items.Count.ToString & " Setting(s)."
+    End Sub
+
+    Private Sub cmbSectionNames_SelectedIndexChanged(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles cmbSectionNames.SelectedIndexChanged
+        btnLoadSection.Enabled = True
+    End Sub
+
+    ' Note this stuff is formally the example code for the utility Functions.
+    Private Sub Other()
+        ' ----------------------------------------------------
+        Dim ReturnString As String = ""
+        Dim ReturnInt As Int32 = 0
+        Dim MyValue As Int32 = 0
+        Dim ConfigurationCollection As New Collection()
+
+        'Dim ServerSettings As New Utility.CADS.ConfigurationFile(ExternalFilename)
+
+        Dim m_Functions As New Utility.Functions
+
+        'm_Functions.LoadConfigSection("SystemConsoleUsers")
+
+        Debug.Print(m_Functions.ConfigContents.Count & " settings in ConfigContents.")
+
+        m_Functions.SaveConfigSettingAttribute("test", "Setting1", "Attribute1", "New Attribute value")
+
+        Dim MySettings As New Collections.Specialized.OrderedDictionary
+        Dim UserList As New Collections.Specialized.OrderedDictionary
+
+        Dim oDir As New Utility.Functions
+        Dim Properties As New Collections.Specialized.StringCollection
+        Dim UserDN As String = "CN=CADS TELEPHONE 01f2e341-c0d3-436d-9635-e41db949c061,OU=Phones,OU=ANZ,DC=Stratatel,DC=COM,DC=AU"
+        Dim ManagerDN As String = "CN=LOWIEN MARY ,OU=Unassigned,OU=Unassigned,OU=Unassigned,OU=Unassigned,OU=Users,OU=ANZ,DC=Stratatel,DC=COM,DC=AU"
+
+        'TargetDirectoryServerAndPort = "LDAP://WKS01:389/"
+
+        ' This is in the config (GeneralSettings atm)
+        'TargetDirectoryConnectionUsername = "REDACTED"
+        'TargetDirectoryConnectionPassword = "REDACTED"
+
+        ' In this instance, we will not connect anonymously
+        'ConnectAnonymously = False
+
+        m_Functions.SetManager(UserDN, ManagerDN)
+
+
+        'm_Functions.AddConfigSettingAttribute("test", "Setting1", "MyAttribute", "Attribute Value")
+        'm_Functions.AddConfigSettingAndAttribute("test", "Setting1", "My Value", "MyAttribute", "Attribute Value")
+        'Dim AttributeValue As String = ""
+        'AttributeValue = m_Functions.LoadConfigSettingAttribute("test", "Setting1", "MyAttribute")
+
+        'Dim Attributes As New Collections.Specialized.OrderedDictionary
+        'Dim Attribute1 As String
+        'Dim Attribute2 As String
+        'm_Functions.LoadConfigSettingAttributes("test", "Setting1")
+        'm_Functions.CloneCollection(m_Functions.ConfigContents, Attributes)
+        '' Attributes now contains each of the attributes
+        '' We use the following to get these attributes:
+        'Attribute1 = m_Functions.CollectionValue("Attribute1", Attributes)
+        'Attribute2 = m_Functions.CollectionValue("Attribute2", Attributes)
+        'm_Functions.DeleteConfigSettingAttribute("test", "Setting1", "Attribute2")
+        m_Functions.SaveConfigSettingAttribute("test", "Setting1", "Attribute1", "New Attribute value")
+
+        Debug.Print("")
+
+        'm_Functions.ConfigFilenameAndPath = ExternalFilename
+
+        'm_Functions.DeleteConfigSetting("Test", "Setting3")
+
+        'm_Functions.ConfigFilenameAndPath = ExternalFilename
+        'm_Functions.AddConfigSection("Test")
+
+        '' Encryption
+        'Dim StringToEncrypt As String = "A Secret"
+        'Dim PrivateKey As String = "A_Stratatel_Secret"
+
+        '' XML safe encryption
+        'Dim EncrpytedString As String = ""
+        'Dim DecryptedString As String = ""
+
+        'EncrpytedString = m_Functions.XMLEncrypt(StringToEncrypt, PrivateKey)
+        'DecryptedString = m_Functions.XMLDecrypt(EncrpytedString, PrivateKey)
+
+        '' Simple encryption
+        'Dim SimpleEncryptedString As String
+        'Dim SimpleDecryptedString As String
+
+        'SimpleEncryptedString = m_Functions.SimpleCrypt(StringToEncrypt)
+        'SimpleDecryptedString = m_Functions.SimpleCrypt(SimpleEncryptedString)
+
+        '' 3DES Encryption
+        'Dim EncryptedString3DES As String
+        'Dim DecryptedString3DES As String
+
+        'EncryptedString3DES = m_Functions.Encrypt3DES(StringToEncrypt, PrivateKey)
+        'DecryptedString3DES = m_Functions.Decrypt3DES(EncryptedString3DES, PrivateKey)
+
+        '' Rijndael Encryption
+        'Dim EncryptedStringRijndael As String
+        'Dim DecryptedStringRijndael As String
+
+        'EncryptedStringRijndael = m_Functions.EncryptString128Bit(StringToEncrypt, PrivateKey)
+        'DecryptedStringRijndael = m_Functions.DecryptString128Bit(EncryptedStringRijndael, PrivateKey)
+
+        ' Process used to encrypt passwords:
+
+        ' 1.  Save encryption key in an encrypted state
+        Dim PlaintextEncryptionKey As String = "MyEncryptionKey"
+        Dim EncryptedEncryptionKey As String = m_Functions.SimpleCrypt(PlaintextEncryptionKey)
+
+        'm_Functions.SaveConfigSetting("SystemSettings", "EncryptionKey", EncryptedEncryptionKey)
+
+        ' 2. Save Encrypted Password
+        Dim PlaintextPassword As String = "MyPassword"
+        Dim EncryptedPassword As String = m_Functions.XMLEncrypt(PlaintextPassword, PlaintextEncryptionKey)
+
+        'm_Functions.SaveConfigSetting("DirectorySettings", "DirectoryUserPassword", EncryptedPassword)
+
+        Properties.Add("{01=Property 1}")
+        Properties.Add("{02=Property 2}")
+        Properties.Add("{03=Property 3}")
+        Properties.Add("{04=Property 4}")
+
+        'TargetDirectoryServerAndPort = "LDAP://WKS01:389/"
+
+        ' This is in the config (GeneralSettings atm)
+        'TargetDirectoryConnectionUsername = "REDACTED"
+        'TargetDirectoryConnectionPassword = "REDACTED"
+
+        ' In this instance, we will not connect anonymously
+        'ConnectAnonymously = False
+
+        oDir.SetCustomProperties(UserDN, Properties)
+
+        Properties.Clear()
+
+        Properties = oDir.GetCustomProperties(UserDN)
+
+        'm_Functions.AddConfigSetting("SecurityDefaults", "Blah", "1")
+        'm_Functions.SaveConfigSetting("SecurityDefaults", "Blah", "2")
+
+        'm_Functions.DeleteConfigSetting("SecurityDefaults", "Blah")
+
+        'm_Functions.LoadConfigSection("SecurityLevels")
+        MySettings = m_Functions.ConfigContents
+
+        'Debug.Print(GlobalSettings.LastStatus.CADS_ERRORCODE)
+
+        Dim mc As Collections.Specialized.OrderedDictionary = m_Functions.GetADUserAttributeList
+
+        'ServerSettings.GetSettings()
+
+        'Debug.Print(m_Helper.GetErrorTypeAndCode(327779))
+        oDir.GetInteractiveUserAuthenticationDetails()
+
+        UserList = m_Functions.GetADUserList("OU=Users")
+
+        ' Command-line stuff
+        Dim CommandLineArguments As Collections.ObjectModel.ReadOnlyCollection(Of String)
+        Dim CommandLineOption As String = ""
+
+        CommandLineArguments = My.Application.CommandLineArgs
+
+        For Each Argument As String In CommandLineArguments
+            CommandLineOption = Argument.ToLower.Remove(2).Replace(Chr(34), "") ' CommandLineOption is the value to use
+            Select Case Argument.ToLower.Substring(0, 2)
+                Case "-f" ' Format file to load
+                    ' Code to load the format
+                Case "-x" ' export filename to write to
+                    ' Code to save the filename for writing to
+                Case "-t" ' type of export to perform
+                    ' Code to save options around what format type to save as
+                Case "-d" ' Delimiter to use
+                    ' Code to save the delimiter to use
+                Case "-s" ' New format filename to save
+                    ' Code to save this format as a new format
+            End Select
+        Next
+
+        'Dim oUser As New ADUser
+        'oUser.Manager = ""
+
+        'oUser.Write()
+
+        'oUser.CommitChanges()
+        'oUser.Close()
+
+        '' ========= Logging ==========
+        Dim Log As Utility.Logging = New Utility.Logging
+
+        'Log.LogLevel = LoggingLevel.Debugging
+        'Log.LogType = LoggingType.File
+
+        Debug.Print("Log filename: " & Log.Filename)
+
+        Dim ImportForm As CADS3Import = New CADS3Import
+        Dim SourceFilename As String = ""
+        Dim DestinationLDAPPath As String = ""
+        Dim Domain As String = ""
+        'Dim Username As String = ""
+        'Dim Password As String = ""
+
+        Log.WriteInformationEvent("Invoking import wizard")
+        ImportForm.ShowDialog()
+        Log.WriteInformationEvent("Returned from import wizard")
+        SourceFilename = ImportForm.SourceFilename
+        DestinationLDAPPath = ImportForm.DestinationLDAPPath
+        Domain = ImportForm.ConnectionDomain
+        'Username = ImportForm.ConnectionUsername
+        'Password =REDACTED
+
+        Log.WriteInformationEvent("Wizard Source filename = " & SourceFilename)
+        Log.WriteInformationEvent("Wizard Destination Path = " & DestinationLDAPPath)
+        Log.WriteInformationEvent("Wizard Connection Domain = " & Domain)
+        'Log.WriteInformationEvent("Wizard Connection Username = "REDACTED"Log.WriteInformationEvent("Wizard Connection Password = "REDACTED"ImportCADS3Users(SourceFilename, DestinationLDAPPath, Domain, Username, Password)
+
+        ImportForm = Nothing
+        Log = Nothing
+
+        Dim MyADUser As New Utility.Types.DirectoryUser
+        Dim MyCADS3User As New Utility.Types.CADS3User
+
+        ' Read a string
+        'ErrorResult = Config.ReadString("My setting", ReturnString, DefaultStringValue)
+
+        ' Write as string
+        'ErrorResult = Config.WriteString("My Setting", "My Value")
+
+        ' Write an int
+        'ErrorResult = Config.WriteInteger("My Setting", MyValue)
+
+        ' Read an Int
+        'ErrorResult = Config.ReadInteger("My Setting", ReturnInt, DefaultIntegerValue)
+
+        'Debug.Print(m_Functions.GetErrorTypeAndCode(ErrorResult))
+
+        ' -------------------------------------------------------
+
+        ' ========= LDAP =========
+        'Dim LDAPFunctions As New Utility.LDAP
+        'Dim DomainAndUsername As String = ""
+        'Dim Password As String = ""
+        'Dim DirectoryPath As String = "LDAP://Athena:389/DC=Stratatel-perth,DC=local"
+
+        'If LDAPFunctions.LDAPDirectoryExists(DirectoryPath) Then
+        'Debug.Print("Directory Exists")
+        'Else
+        'Debug.Print("Could not bind to the Directory")
+        'End If
+
+        'If LDAPFunctions.CheckPassword(DirectoryPath, DomainAndUsername, Password) Then
+        'Debug.Print("Password Ok")
+        'Else
+        'Debug.Print("Password is incorrect")
+        'End If
+
+        ' ========= Disk Writer ==========
+        'Dim oFile As New Utility.DiskWriter()
+        'Debug.Print("Output filename: " & oFile.OutputFilename)
+
+        'oFile = Nothing
+
+        'oFile = New Utility.DiskWriter("blah.txt") ' You should use an absolute path
+        'Debug.Print("Output filename: " & oFile.OutputFilename)
+
+        ' Sounds
+
+
+        ' Serialize
+        'Dim MyCollection As New Collections.ArrayList
+        'Dim j As Integer
+
+        'For j = 1 To 100000
+        '    Dim oNewUser As New Directory.DirectoryUser
+
+        '    Dim i As Integer = 0
+        '    For i = 1 To 100
+        '        oNewUser.Department = "1234567890"
+        '    Next i
+
+        '    MyCollection.Add(oNewUser)
+
+        'Next j
+        'Try
+        '    For Each MyUser As Directory.DirectoryUser In MyCollection
+        '        MyUser.Name = "Username" & j.ToString
+        '    Next
+        'Catch ex As Exception
+        '    Debug.Print(ex.Message)
+        'End Try
+        'Application.Exit()
+
+        'Dim m_Variables As New Variables
+        'Dim oLogin As New Directory
+        'Dim Username As String = ""
+        'Dim Password As String = ""
+        'Dim AuthenticationResult As Boolean = False
+
+        'Username = "REDACTED"
+        'Password = "REDACTED"
+        'ErrorResult = oLogin.CheckADAMPassword("LDAP://WKS01:389/OU=Directory,DC=Stratatel,DC=COM,DC=AU", Username, Password, AuthenticationResult)
+
+        'If ErrorResult = SUCCESS Then
+        '    Console.WriteLine("Successful ADAM Authentication")
+        'Else
+        '    Console.WriteLine(m_Variables.GetErrorTypeAndCode(ErrorResult))
+        'End If
+
+        'Dim UserList As New Collection
+        'Dim NewUser As New User
+        'Dim Filename As String = "C:\blah"
+        'Dim ResultCode As Int32 = SUCCESS
+
+        '' ==========================================================================
+        '' Get the user list
+        'NewUser.Name = "Fred"
+        'NewUser.Path = "LDAP://blah"
+        'UserList.Add(NewUser)
+
+        'NewUser = New User
+        'NewUser.Name = "Jack"
+        'NewUser.Path = "LDAP://blahx"
+        'UserList.Add(NewUser)
+        'Console.WriteLine("UserList now contains " & UserList.Count & " objects.")
+        '' ==========================================================================
+        ''Serialize (Save to disk)
+        'ResultCode = m_Helper.Serialize(Filename, UserList)
+        'Console.WriteLine("Result of Serialize: " & ResultCode)
+        '' ==========================================================================
+        '' Remove all elements from UserList
+        'UserList.Clear()
+        'Console.WriteLine("UserList now contains " & UserList.Count & " objects.")
+        '' ==========================================================================
+        '' De-serialize (Load from disk)
+        'm_Helper.Deserialize(Filename, UserList)
+        'Console.WriteLine("Result of Deserialize: " & ResultCode & ".  UserList now contains " & UserList.Count & " objects.")
+        '' ==========================================================================
+
+        ' AD Sitename
+        'Dim ADSite As String = My.Computer.Registry.GetValue("HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\NetLogon\Parameters", "DynamicSiteName", "")
+
+
+        'Dim LoginForm As New Utility.frmLogin
+
+        'LoginForm.ShowDialog()
+
+        'Dim DirectoryHelper As New Directory
+        'Dim SiteList As New Collections.Specialized.StringCollection
+        'Dim ErrorResult As Int32 = DirectoryHelper.GetADSitelist(SiteList)
+
+        'If ErrorResult = SUCCESS Then
+        '    Debug.Print("Sitelist:")
+        '    For Each Site As String In SiteList
+        '        Debug.Print(vbTab & Site)
+        '    Next
+        'Else
+        '    Debug.Print("There was an error retrieving the list of AD Sites.  The error was " & ErrorToString(ErrorResult) & ".")
+        'End If
+
+        'Dim UserDN As String = "CN=LAdamson,OU=Location 1,OU=Section 1,OU=Department 1,OU=Division 1,OU=Directory,DC=Stratatel,DC=COM,DC=AU"
+        'Dim ManagerDN As String = "CN=RPelloe,OU=Location 1,OU=Section 1,OU=Department 1,OU=Division 1,OU=Directory,DC=Stratatel,DC=COM,DC=AU"
+        'Dim NewOU As String = "OU=Location 2,OU=Section 1,OU=Department 1,OU=Division 1,OU=Directory,DC=Stratatel,DC=COM,DC=AU"
+
+        'Dim Dir As New Directory()
+
+        '' Set the Server connection string
+        'Utility.CADS.Directory.ServerConnectionString = "REDACTED"
+
+        '' If we want to use a username and pasword, set these properties
+        'Utility.CADS.Directory.DirectoryConnectionUsername = "REDACTED"
+        'Utility.CADS.Directory.DirectoryConnectionPassword = "REDACTED"
+
+        '' In this instance, we will connect anonymously
+        'Utility.CADS.Directory.ConnectAnonymous = True
+
+        ''Dir.SetManager(UserDN, ManagerDN)
+        'Dir.MoveUser(UserDN, NewOU)
+
+
+        'Dim ConfigObject As New Utility.CADS.ExternalConfig
+
+        'ConfigObject.Filename = My.Application.Info.DirectoryPath & "\External.config"
+
+        'ConfigObject.AddString("MyNewSetting", "MyValue")
+
+        'Dim oDir As New Utility.CADS.Directory
+        'Utility.CADS.Directory.ServerConnectionString = "REDACTED"
+        'Dim Result As Boolean
+        'Dim ObjectExistsResult As Int32 = SUCCESS+
+
+
+        'ObjectExistsResult = oDir.ObjectExists("OU=UNASSIGNED,OU=Users,OU=ANZ,DC=Stratatel,DC=COM,DC=AU", Result)
+
+        'If ObjectExistsResult = SUCCESS Then
+        '    ' Ok
+        '    If Result = True Then
+        '        ' The Object exists
+        '    Else
+        '        ' The Object was not found
+        '    End If
+        'Else
+        '    ' Not Ok
+        'End If
+
+        'Dir.CreateOU("OU=Location 99,OU=Section 1,OU=Department 1,OU=Division 1,OU=Directory,DC=Stratatel,DC=COM,DC=AU")
+
+    End Sub
+
+End Class

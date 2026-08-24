@@ -1,0 +1,696 @@
+﻿Public Class Types
+
+#Region " Structures "
+
+    Public Structure Status
+        Public CADS_ERRORCODE As Int32
+        Public LastException As Exception
+
+        Public Sub Clear()
+            LastException = Nothing
+            CADS_ERRORCODE = ERRORTYPE.NONE
+        End Sub
+
+    End Structure
+
+    Public Structure ExtensionRange
+        Dim StartNumber As String
+        Dim FinishNumber As String
+    End Structure
+
+    Public Structure StreetAddress
+        Dim Number As String
+        Dim Street As String
+        Dim Suburb As String
+        Dim State As String
+        Dim Postcode As String
+        Dim Country As String
+    End Structure
+
+    Public Structure CostCentre
+        Dim ID As Int32
+        Dim Code As String
+        Dim Manager As String
+    End Structure
+
+    Public Structure PhysicalLocation
+        Dim ID As Int32
+        Dim Name As String
+        Dim Description As String
+        Dim Address As StreetAddress
+        Dim Manager As String
+        Dim PABX As PABXInformation()
+        Dim CostCentre As CostCentre
+    End Structure
+
+    Public Structure PABXInformation
+        Dim ExtensionRange As ExtensionRange()
+        Dim IndialRange As ExtensionRange()
+        Dim Costcode As String
+        Dim SiteAccessCode As String
+    End Structure
+
+    Public Structure Phone
+        Dim Number As String
+        Dim Manager As String
+        Dim Department As String
+        Dim Location As String
+        Dim DirectoryPath As String
+        Dim User As String
+        Dim PhoneType As TELEPHONE_TYPE
+    End Structure
+
+    Public Structure CreateUserException
+        Dim TheUser As Object
+        Dim TheUserObjectType As String
+        Dim TheError As Object
+        Dim TheErrorObjectType As String
+    End Structure
+
+    ''' <summary>
+    ''' A representation of an Active Directory or ADAM user
+    ''' </summary>
+    ''' <remarks></remarks>
+    Public Structure DirectoryUser
+
+        ''' <summary>
+        ''' Active Directory Attribute 'comment'
+        ''' </summary>
+        ''' <remarks></remarks>
+        Public Comment
+
+        ''' <summary>
+        ''' Active Directory Attribute 'distinguishedName'
+        ''' </summary>
+        ''' <remarks></remarks>
+        Public distinguishedName As String
+
+        ''' <summary>
+        ''' Active Directory Attribute 'displayName()'
+        ''' </summary>
+        ''' <remarks></remarks>
+        Public DisplayName As String
+
+        ''' <summary>
+        ''' Active Directory Attribute 'name()'
+        ''' </summary>
+        ''' <remarks></remarks>
+        Public Name As String
+
+        ''' <summary>
+        ''' Active Directory Attribute 'cn(common name)'
+        ''' </summary>
+        ''' <remarks></remarks>
+        Public CommonName As String
+
+        ''' <summary>
+        ''' Active Directory Attribute 'otherTelephone(Phone-Office-Other)'
+        ''' </summary>
+        ''' <remarks></remarks>
+        Public OfficeTelephoneNumber As String
+
+        ''' <summary>
+        ''' Active Directory Attribute '(Title)'
+        ''' </summary>
+        ''' <remarks>CADS 3 </remarks>
+        Public Title As String
+
+        ''' <summary>
+        ''' Active Directory Attribute '(Locality-Name)'
+        ''' </summary>
+        ''' <remarks></remarks>
+        Public Suburb As String
+
+        ''' <summary>
+        ''' Active Directory Attribute ' (Facsimile-Telephone-Number)'
+        ''' </summary>
+        ''' <remarks></remarks>
+        Public FacsimileTelephoneNumber As String
+
+        ''' <summary>
+        ''' Active Directory Attribute ' (Phone-Mobile-Primary)'
+        ''' </summary>
+        ''' <remarks></remarks>
+        Public MobileTelephoneNumber As String
+
+        ''' <summary>
+        ''' Active Directory Attribute ' (Surname)'
+        ''' </summary>
+        ''' <remarks></remarks>
+        Public Surname As String
+
+        ''' <summary>
+        ''' Active Directory Attribute ' (Given-Name)'
+        ''' </summary>
+        ''' <remarks></remarks>
+        Public GivenName As String
+
+        ''' <summary>
+        ''' Active Directory Attribute ''
+        ''' </summary>
+        ''' <remarks></remarks>
+        Public Department As String
+
+        ''' <summary>
+        ''' Active Directory Attribute ' (Employee-Number)'
+        ''' </summary>
+        ''' <remarks></remarks>
+        Public EmployeeNumber As String
+
+        ''' <summary>
+        ''' Active Directory Attribute ' (Telephone-Number)'
+        ''' </summary>
+        ''' <remarks></remarks>
+        Public TelephoneNumber As String
+
+        ''' <summary>
+        ''' Active Directory Attribute 'description' (Description)
+        ''' </summary>
+        ''' <remarks></remarks>
+        Public Description As String
+
+        ''' <summary>
+        ''' Active Directory Attribute 'manager' (Manager)
+        ''' </summary>
+        ''' <remarks></remarks>
+        Public Manager As String
+
+        ''' <summary>
+        ''' Temporary field - used for migration purposes only
+        ''' </summary>
+        ''' <remarks>V1.0 D. Robinson</remarks>
+        Public TemporaryField1 As String
+
+        ''' <summary>
+        ''' Temporary field - used for migration purposes only
+        ''' </summary>
+        ''' <remarks>V1.0 D. Robinson</remarks>
+        Public TemporaryField2 As String
+
+        ''' <summary>
+        ''' Temporary field - used for migration purposes only
+        ''' </summary>
+        ''' <remarks>V1.0 D. Robinson</remarks>
+        Public TemporaryField3 As String
+
+        ''' <summary>
+        ''' Temporary field - used for migration purposes only
+        ''' </summary>
+        ''' <remarks>V1.0 D. Robinson</remarks>
+        Public TemporaryField4 As String
+
+        ''' <summary>
+        ''' Temporary field - used for migration purposes only
+        ''' </summary>
+        ''' <remarks>V1.0 D. Robinson</remarks>
+        Public TemporaryField5 As String
+
+        ''' <summary>
+        ''' Temporary field - used for migration purposes only
+        ''' </summary>
+        ''' <remarks>V1.0 D. Robinson</remarks>
+        Public TemporaryField6 As String
+
+        ''' <summary>
+        ''' Temporary field - used for migration purposes only
+        ''' </summary>
+        ''' <remarks>V1.0 D. Robinson</remarks>
+        Public TemporaryField7 As String
+
+        ''' <summary>
+        ''' Temporary field - used for migration purposes only
+        ''' </summary>
+        ''' <remarks>V1.0 D. Robinson</remarks>
+        Public TemporaryField8 As String
+
+        ''' <summary>
+        ''' Temporary field - used for migration purposes only
+        ''' </summary>
+        ''' <remarks>V1.0 D. Robinson</remarks>
+        Public TemporaryField9 As String
+
+        ''' <summary>
+        ''' Temporary field - used for migration purposes only
+        ''' </summary>
+        ''' <remarks>V1.0 D. Robinson</remarks>
+        Public TemporaryField10 As String
+
+        Public OtherPropertiesStringCollection As Collections.Specialized.StringCollection
+
+        Public UID As String
+
+    End Structure
+
+    ''' <summary>
+    ''' A representation of a CADS3 user
+    ''' </summary>
+    ''' <remarks></remarks>
+    Public Structure CADS3User
+
+        ''' <summary>
+        ''' CADS3 Field
+        ''' </summary>
+        ''' <remarks>Replaced by Group membership</remarks>
+        ''' 
+        Public Site As String
+
+        ''' <summary>
+        ''' CADS3 Field
+        ''' </summary>
+        ''' <remarks></remarks>
+        Public SiteAddress As String
+
+        ''' <summary>
+        ''' CADS3 Field
+        ''' </summary>
+        ''' <remarks></remarks>
+        Public CostCentreCode As String
+
+        ''' <summary>
+        ''' CADS3 Field
+        ''' </summary>
+        ''' <remarks>AD entry: OtherTelephone (Phone-Office-Other)</remarks>
+        '''
+        Public TelephoneExtensionNumber As String
+
+        ''' <summary>
+        ''' CADS3 Field
+        ''' </summary>
+        ''' <remarks>AD entry: sn (Surname)</remarks>
+        ''' 
+        Public Surname As String
+
+        ''' <summary>
+        ''' CADS3 Field
+        ''' </summary>
+        ''' <remarks>AD entry: givenName (Given-Name)</remarks>
+        '''         
+        Public FirstName As String
+
+        ''' <summary>
+        ''' CADS3 Field
+        ''' </summary>
+        ''' <remarks>N/A - can be replaced by Group membership</remarks>
+        ''' 
+        Public OfficeAddress As String
+
+        ''' <summary>
+        ''' CADS3 Field
+        ''' </summary>
+        ''' <remarks>AD entry: title (Title)</remarks>
+        ''' 
+        Public Title As String
+
+        ''' <summary>
+        ''' CADS3 Field
+        ''' </summary>
+        ''' <remarks>AD entry: l (Locality-Name)</remarks>
+        ''' 
+        Public Suburb As String
+
+        ''' <summary>
+        ''' CADS3 Field
+        ''' </summary>
+        ''' <remarks>AD entry: facsimileTelephoneNumber (Facsimile-Telephone-Number)</remarks>
+        ''' 
+        Public FacsimileTelephoneNumber As String
+
+        ''' <summary>
+        ''' CADS3 Field
+        ''' </summary>
+        ''' <remarks>AD entry: mobile (Phone-Mobile-Primary)</remarks>
+        ''' 
+        Public MobileTelephoneNumber As String
+
+        ''' <summary>
+        ''' CADS3 Field
+        ''' </summary>
+        ''' <remarks>AD entry: division</remarks>
+        ''' 
+        Public Division As String
+
+        ''' <summary>
+        ''' CADS3 Field
+        ''' </summary>
+        ''' <remarks></remarks>
+        ''' 
+        Public BusinessUnit As String
+
+        ''' <summary>
+        ''' CADS3 Field
+        ''' </summary>
+        ''' <remarks>AD entry: department* (AND OU Level 2)</remarks>
+        ''' 
+        Public Department As String
+
+        ''' <summary>
+        ''' CADS3 Field
+        ''' </summary>
+        ''' <remarks>AD entry: telephoneNumber (Telephone-Number)</remarks>
+        ''' 
+        Public TelephoneNumber As String
+
+        ''' <summary>
+        ''' CADS3 Field ''
+        ''' </summary>
+        ''' <remarks>AD entry: employeeNumber (Employee-Number)</remarks>
+        ''' 
+        Public CADS3_ID As String
+
+        ''' <summary>
+        ''' CADS3 Field ''
+        ''' </summary>
+        ''' <remarks>N/A - not required (or Description field can be substituted)</remarks>
+        ''' 
+        Public In_Out As String
+
+        ''' <summary>
+        ''' CADS3 Field ''
+        ''' </summary>
+        ''' <remarks>N/A - not required (or Description field can be substituted)</remarks>
+        ''' 
+        Public CommentsField1 As String
+
+        ''' <summary>
+        ''' CADS3 Field ''
+        ''' </summary>
+        ''' <remarks>N/A - not required (or Description field can be substituted)</remarks>
+        ''' 
+        Public CommentsField2 As String
+
+        ''' <summary>
+        ''' CADS3 Field ''
+        ''' </summary>
+        ''' <remarks>N/A - not required (or Description field can be substituted)</remarks>
+        ''' 
+        Public CommentsField3 As String
+
+        ''' <summary>
+        ''' CADS3 Field ''
+        ''' </summary>
+        ''' <remarks>N/A - not required (or Description field can be substituted)</remarks>
+        ''' 
+        Public CommentsField4 As String
+
+        ''' <summary>
+        ''' CADS3 Field ''
+        ''' </summary>
+        ''' <remarks>N/A - not required (or Description field can be substituted)</remarks>
+        ''' 
+        Public CommentsField5 As String
+
+        ''' <summary>
+        ''' CADS3 Field ''
+        ''' </summary>
+        ''' <remarks>N/A - not required (or Description field can be substituted)</remarks>
+        ''' 
+        Public CommentsField6 As String
+
+        ''' <summary>
+        ''' CADS3 Field ''
+        ''' </summary>
+        ''' <remarks>N/A - not required (or Description field can be substituted)</remarks>
+        ''' 
+        Public CommentsField7 As String
+
+        ''' <summary>
+        ''' CADS3 Field ''
+        ''' </summary>
+        ''' <remarks>N/A - not required (or Description field can be substituted)</remarks>
+        ''' 
+        Public CommentsField8 As String
+
+        ''' <summary>
+        ''' CADS Import Custom Field
+        ''' </summary>
+        ''' <remarks></remarks>
+        Public CustomField1 As String
+
+        ''' <summary>
+        ''' CADS Import Custom Field
+        ''' </summary>
+        ''' <remarks></remarks>
+        Public CustomField2 As String
+
+        ''' <summary>
+        ''' CADS Import Custom Field
+        ''' </summary>
+        ''' <remarks></remarks>
+        Public CustomField3 As String
+
+        ''' <summary>
+        ''' CADS Import Custom Field
+        ''' </summary>
+        ''' <remarks></remarks>
+        Public CustomField4 As String
+
+        ''' <summary>
+        ''' CADS Import Custom Field
+        ''' </summary>
+        ''' <remarks></remarks>
+        Public CustomField5 As String
+
+        ''' <summary>
+        ''' CADS Import Custom Field
+        ''' </summary>
+        ''' <remarks></remarks>
+        Public CustomField6 As String
+
+        ''' <summary>
+        ''' CADS Import Custom Field
+        ''' </summary>
+        ''' <remarks></remarks>
+        Public CustomField7 As String
+
+        ''' <summary>
+        ''' CADS Import Custom Field
+        ''' </summary>
+        ''' <remarks></remarks>
+        Public CustomField8 As String
+
+        ''' <summary>
+        ''' CADS Import Custom Field
+        ''' </summary>
+        ''' <remarks></remarks>
+        Public CustomField9 As String
+
+        ''' <summary>
+        ''' CADS Import Custom Field
+        ''' </summary>
+        ''' <remarks></remarks>
+        Public CustomField10 As String
+
+        ''' <summary>
+        ''' CADS3 Field
+        ''' </summary>
+        ''' <remarks></remarks>
+        Public CostCentre As String
+
+        ''' <summary>
+        ''' GUID
+        ''' </summary>
+        ''' <remarks></remarks>
+        Public UID As String
+
+        Public OtherPropertiesStringCollection As Collections.Specialized.StringCollection
+
+    End Structure
+
+    Public Structure DirectoryOU
+
+        Dim Description As String
+
+        Dim DistinguishedName As String
+
+        Dim Suburb As String
+
+        Dim Address As String
+
+        Public OtherPropertiesStringCollection As Collections.Specialized.StringCollection
+
+    End Structure
+
+#End Region
+
+#Region " Enums "
+
+    ''' <summary>
+    ''' CADS Specific Error types
+    ''' </summary>
+    ''' <remarks>V1.0  D. Robinson</remarks>
+    ''' 
+    Public Enum ERRORTYPE
+        NONE = -1
+        SUCCESS = 0
+        FILESYSTEM = 1
+        CONFIGURATION = 2
+        SECURITY = 3
+        CRYPT = 4
+        DIRECTORY = 5
+        UNSPECIFIED = 99
+    End Enum
+
+    Public Enum ERROR_FILESYSTEM
+        DIRECTORY_NOT_FOUND = 1
+        FILE_NOT_FOUND = 2
+        FILE_READ = 3
+        FILE_WRITE = 4
+        FILE_IO = 99
+    End Enum
+
+    Public Enum ERROR_CONFIGURATION
+        SETTING_NOT_FOUND = 1
+        STRING_READ_ERROR = 2
+        SECTION_NOT_FOUND = 3
+        WRITE_NOT_SUPPORTED = 4
+        WRITE_ERROR = 5
+        WRITE_NOT_PERFORMED = 6
+        STRING_WRITE_ERROR = 7
+        ATTRIBUTE_NOT_FOUND = 8
+        ATTRIBUTE_ALREADY_EXISTS = 9
+        SETTING_CREATE_ERROR = 10
+        SETTING_DELETE_ERROR = 11
+        SETTING_READ_ERROR = 12
+        SECTION_READ_ERROR = 13
+        SECTION_WRITE_ERROR = 14
+        SECTION_CREATE_ERROR = 15
+        SECTION_DELETE_ERROR = 16
+        ATTRIBUTE_READ_ERROR = 17
+        ATTRIBUTE_WRITE_ERROR = 18
+        ATTRIBUTE_CREATE_ERROR = 19
+        ATTRIBUTE_DELETE_ERROR = 20
+        CONFIG_SERVER_TIMEOUT_ERROR = 98
+        MASTER_CONFIG_NOT_FOUND = 99
+    End Enum
+
+    Public Enum ERROR_SECURITY
+        COULD_NOT_CREATE_OBJECT = 1
+        COULD_NOT_READ_OBJECT = 2
+        COULD_NOT_WRITE_OBJECT = 3
+        AUTHENTICATION_FAILURE = 5
+        AUTOLOGON_FAILURE = 6
+        AUTOLOGON_DISABLED = 7
+        INCORRECT_USERNAME = 8
+        INCORRECT_PASSWORD =REDACTED
+        NOT_AUTHORISED = 10
+        USERNAME_NOT_SPECIFIED = 11
+        GENERIC_SECURITY_ERROR = 99
+    End Enum
+
+    Public Enum ERROR_CRYPT
+        ENCRYPTION_ERROR = 1
+        DECRYPTION_ERROR = 2
+        GENERAL_ERROR = 3
+    End Enum
+
+    Public Enum ERROR_UNSPECIFIED
+        NOT_IMPLEMENTED = 1
+        SYNTAX_ERROR = 2
+        WRONG_OBJECT_TYPE = 3
+        NO_VALUES_SPECIFIED = 4
+        INTERNAL_ERROR = 5
+        OTHER = 99
+    End Enum
+
+    Public Enum ERROR_DIRECTORY
+        REFERRAL_RETURNED = 1
+        DIRECTORY_ERROR = 2
+        NO_USERNAME = 3
+        NO_PASSWORD =REDACTED
+        AUTHENTICATION_FAILURE = 5
+        SERVER_NOT_FOUND = 6
+        REQUEST_TIMEOUT = 7
+        CREATE_USER_ERROR = 8
+        CREATE_OU_ERROR = 9
+        OTHER = 99
+    End Enum
+
+    ''' <summary>
+    ''' Indicates the type of logging to employ
+    ''' </summary>
+    ''' <remarks>V1.0 D. Robinson</remarks>
+    Public Enum LOGGING_TYPE
+        LOGFILE = 1
+        EMAIL = 2
+        COMPUTER_EVENT_LOG = 4
+    End Enum
+
+    ''' <summary>
+    ''' Indicates the type of information to log
+    ''' </summary>
+    ''' <remarks>V1.0 D. Robinson</remarks>
+    Public Enum LOGGING_LEVEL
+        ERRORS = 1        ' WILL ALWAYS BE LOGGED
+        WARNING = 2
+        INFORMATION = 4
+        DEBUGGING = 255
+    End Enum
+
+    Public Enum TELEPHONE_TYPE
+        MOBILE = 2
+        FIXED = 4
+        PAGER = 5
+        FAX = 10
+        OFFICE_EXTENSION = 11
+        HOME = 12
+    End Enum
+
+    Public Enum USER_ACCOUNT_CONTROL_FLAG
+        SCRIPT = &H1
+        ACCOUNT_DISABLED = &H2
+        HOMEDIR_REQUIRED = &H8
+        LOCKED_OUT = &H10                          ' Not used by Active Directory
+        PASSWD_NOT_REQD = &H20
+        PASSWD_CANT_CHANGE = &H40                  ' Not used by Active Directory
+        ENCRYPTED_TEXT_PASSWD_ALLWD = &H80
+        TEMP_DUPLICATE_ACCT = &H100
+        NORMAL_ACCOUNT = &H200
+        INTERDOMAIN_TRUST_ACCT = &H800
+        WORKSTATION_TRUST_ACCT = &H1000
+        SERVER_TRUST_ACCT = &H2000
+        PASSWD_NO_EXPIRE = &H10000
+        MNS_LOGON_ACCT = &H20000
+        SMART_CART_REQD = &H40000
+        TRUSTED_FOR_DELEGATION = &H80000
+        NOT_DELEGATED = &H100000
+        USE_DES_KEY_ONLY = &H200000
+        PREAUTH_NOT_REQD = &H400000
+        PASSWD_EXPIRED = &H800000                   ' Not used by Active Directory
+        TRUSTED_TO_AUTH_FOR_DELEGATION = &H1000000
+        NOAUTHDATAREQUIRED = &H2000000
+    End Enum
+
+    Public Enum SERVER_TYPE
+        PRIMARY = 1
+        SECONDARY = 2
+        TERTIARY = 3
+    End Enum
+
+    Public Enum SERVICE_STATE
+        UNKNOWNSTATE = 0
+        STOPPED = 1
+        STARTED = 2
+    End Enum
+
+    Public Enum ATTRIBUTE_FORMAT_TYPE
+        NO_FORMAT = 0
+        STRING_FORMAT = 1
+        NUMBER_FORMAT = 2
+        INTEGER_FORMAT = 3
+        CURRENCY_FORMAT = 4
+        DATE_FORMAT = 5
+        TIME_FORMAT = 6
+        DATE_TIME_FORMAT = 7
+        CUSTOM_FORMAT = 8
+        YES_NO_FORMAT = 9
+        ON_OFF_FORMAT = 10
+        TRUE_FALSE_FORMAT = 11
+        DISTINGUISHED_NAME_FORMAT = 12
+        DIRECTORY_DATE_TIME = 13
+        DIRECTORY_GUID_FORMAT = 14
+    End Enum
+
+#End Region
+
+End Class
+

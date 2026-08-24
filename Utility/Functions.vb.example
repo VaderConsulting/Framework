@@ -1,0 +1,3343 @@
+﻿#Region " Imports "
+
+Imports Utility.Types
+Imports Utility.Constants
+Imports Utility.Types.LOGGING_TYPE
+Imports Utility.Types.ERROR_CONFIGURATION
+Imports Utility.Types.ERROR_CRYPT
+Imports Utility.Types.ERROR_FILESYSTEM
+Imports Utility.Types.ERROR_SECURITY
+Imports Utility.Types.ERRORTYPE
+Imports System.Runtime.Serialization
+Imports System.DirectoryServices
+Imports System.Reflection
+Imports System.Xml.XPath
+Imports System.Configuration
+Imports System.IO
+Imports System.Collections.Specialized
+Imports System.Text
+Imports System.Threading
+Imports System.Security.Cryptography
+Imports Utility
+
+' WCF Client
+Imports System
+Imports System.ServiceModel
+Imports System.ServiceModel.Web
+Imports System.ServiceModel.Description
+
+#End Region
+
+Public Class Functions
+
+    
+
+    ' -------------------------------------------------------
+    ' Config Specific
+    Private m_Types As New Types
+    'Private m_ConfigurationFilename As String = My.Application.Info.DirectoryPath & "\cads.config"
+    '
+
+    ' -------------------------------------------------------
+    Private m_Port As Long = 8000
+    Private m_Host As String = "localhost"
+    Private m_ServerAddress As String
+    ' -------------------------------------------------------
+
+    Sub New()
+        DoStartup()
+        ' -------------------------------------------------------
+        ' WCF Specific
+        UpdateServerAddress()
+        ' -------------------------------------------------------
+    End Sub
+
+#Region " Public Variables "
+
+    Public ConfigContents As New Collections.Specialized.OrderedDictionary     ' Holds the list of settings
+
+    Public InteractiveUserUsername As String = ""
+    Public InteractiveUserPassword As String = ""
+    Public InteractiveUserIsAuthenticated As Boolean = False
+    Public UserDefaultLocation As String = ""
+    'Public TargetDirectoryUserDN As String = ""
+    'Public TargetDirectoryServerAndPort As String = ""
+    Public TargetDirectoryUserRootDN As String = ""
+    Public TargetDirectoryPhoneRootDN As String = ""
+    Public TargetDirectoryConfigurationRootDN As String = ""
+    'Public TargetDirectoryUser As DirectoryEntry
+    Public TargetDirectoryConnectionUsername As String = ""
+    Public TargetDirectoryConnectionPassword As String = ""
+    Public InteractiveUserActiveDirectoryPath As String = ""
+    Public DirectoryConnection As DirectoryEntry
+    Public ConnectAnonymously As Boolean = False
+
+    Private m_AppDataPath As String = My.Computer.FileSystem.SpecialDirectories.CurrentUserApplicationData
+
+    Public LogFilename As String = m_AppDataPath & "\" & Date.Now.Year.ToString.PadLeft(4, "0") & Date.Now.Month.ToString.PadLeft(2, "0") & Date.Now.Day.ToString.PadLeft(2, "0") & "-" & My.Application.Info.AssemblyName & "-Logfile.txt"
+    Public FileLoggingObject As New Logging(LogFilename)
+    Public LastStatus As New Status
+    Public ConfigurationFilesRoot As String
+    'Public ConfigServer As New Utility.Host
+    Public ConfigSettings As New Collections.Specialized.OrderedDictionary
+
+    Public DecryptedEncryptionKey As String
+    Public DirectoryServers() As String = {}
+
+#End Region
+
+#Region " Private Variables "
+
+    Private m_ConfigFilenameAndPath As String = My.Computer.FileSystem.SpecialDirectories.CurrentUserApplicationData & "\cads.config"
+    Private m_ConfigDocument As New ConfigXmlDocument
+    Private m_UserAccessLevel As String = Constants.DEFAULTSTRINGVALUE
+    Private m_UserAccessLevelFound As Boolean = False
+    Private m_ClientState As SERVICE_STATE = SERVICE_STATE.STOPPED
+    Private m_CurrentDirectoryServer As String
+    Private m_DoNotDownloadUserConfiguration As Boolean = False
+    'Private m_ConfigurationFilesRootName As String = "configuration"
+    'Private m_AppDataPath As String = My.Computer.FileSystem.SpecialDirectories.CurrentUserApplicationData
+    Private m_RunningInNonInteractiveMode As Boolean = False
+    Private m_CADSConfigFileNotFound As Boolean = True
+    Private m_ConfigFileSourceLocation As String = ""
+
+#End Region
+
+#Region " Properties "
+
+    ''' <summary>
+    ''' The filename of the external configuration file
+    ''' </summary>
+    ''' <value>The filename to use</value>
+    ''' <returns>The filename in use</returns>
+    ''' <remarks>V1.0  D. Robinson</remarks>
+    Public Property ConfigFilenameAndPath() As String
+        Get
+            Return m_ConfigFilenameAndPath
+        End Get
+        Set(ByVal value As String)
+            m_ConfigFilenameAndPath = value
+        End Set
+    End Property
+
+    Public ReadOnly Property AppDataPath() As String
+        Get
+            Return m_AppDataPath
+        End Get
+    End Property
+
+    Public Property RunningInNonInteractiveMode() As Boolean
+        Get
+            Return m_RunningInNonInteractiveMode
+        End Get
+        Set(ByVal value As Boolean)
+            m_RunningInNonInteractiveMode = value
+        End Set
+    End Property
+
+    Public Property ConfigFileSourceLocation() As String
+        Get
+            Return m_ConfigFileSourceLocation
+        End Get
+        Set(ByVal value As String)
+            m_ConfigFileSourceLocation = value
+        End Set
+    End Property
+
+    Public Property CADSConfigFileNotFound() As Boolean
+        Get
+            Return m_CADSConfigFileNotFound
+        End Get
+        Set(ByVal value As Boolean)
+            m_CADSConfigFileNotFound = value
+        End Set
+    End Property
+
+    Public Property CurrentDirectoryServer() As String
+        Get
+            Return m_CurrentDirectoryServer
+        End Get
+        Set(ByVal value As String)
+            If value.EndsWith("/") Then
+                m_CurrentDirectoryServer = value
+            Else
+                m_CurrentDirectoryServer = value & "/"
+            End If
+        End Set
+    End Property
+
+    Public Property ClientState() As SERVICE_STATE
+        Get
+            Return m_ClientState
+        End Get
+        Set(ByVal value As SERVICE_STATE)
+            m_ClientState = value
+        End Set
+    End Property
+
+    Public Property DoNotDownloadUserConfiguration() As Boolean
+        Get
+            Return m_DoNotDownloadUserConfiguration
+        End Get
+        Set(ByVal value As Boolean)
+            m_DoNotDownloadUserConfiguration = value
+        End Set
+    End Property
+
+    'Public Property ApplicationStatus() As Status
+    '    Get
+    '        Return m_ApplicationStatus
+    '    End Get
+    '    Set(ByVal value As Status)
+    '        m_ApplicationStatus = value
+    '        SetStatus(ApplicationStatus)
+    '    End Set
+    'End Property
+
+#End Region
+
+#Region " General "
+
+    ''' <summary>
+    ''' Translates the ERROR_FILESYSTEM code into the CADS_ERRORCODE
+    ''' </summary>
+    ''' <param name="ErrorType">One of the defined CADS_ERROR_TYPES</param>
+    ''' <param name="ErrorNumber">The ERROR_FILESYSTEM value to translate</param>
+    ''' <returns>The CADS_ERRORCODE</returns>
+    ''' <remarks>V1.0  D. Robinson</remarks>
+    Public Function ErrorResult(ByVal ErrorType As ERRORTYPE, ByVal ErrorNumber As ERROR_FILESYSTEM) As Int32
+        Dim Result As Int32 = (ErrorType * (2 ^ 16)) + ErrorNumber
+
+        Return Result
+    End Function
+
+    ''' <summary>
+    ''' Translates the ERROR_CONFIG code into the CADS_ERRORCODE
+    ''' </summary>
+    ''' <param name="ErrorType">One of the defined CADS_ERROR_TYPES</param>
+    ''' <param name="ErrorNumber">The ERROR_CONFIG value to translate</param>
+    ''' <returns>The CADS_ERRORCODE</returns>
+    ''' <remarks>V1.0  D. Robinson</remarks>
+    Public Function ErrorResult(ByVal ErrorType As ERRORTYPE, ByVal ErrorNumber As ERROR_CONFIGURATION) As Int32
+        Dim Result As Int32 = (ErrorType * (2 ^ 16)) + ErrorNumber
+
+        Return Result
+    End Function
+
+    ''' <summary>
+    ''' Translates the ERROR_SECURITY code into the CADS_ERRORCODE
+    ''' </summary>
+    ''' <param name="ErrorType">One of the defined CADS_ERROR_TYPES</param>
+    ''' <param name="ErrorNumber">The ERROR_SECURITY value to translate</param>
+    ''' <returns>The CADS_ERRORCODE</returns>
+    ''' <remarks>V1.0  D. Robinson</remarks>
+    Public Function ErrorResult(ByVal ErrorType As ERRORTYPE, ByVal ErrorNumber As ERROR_SECURITY) As Int32
+        Dim Result As Int32 = (ErrorType * (2 ^ 16)) + ErrorNumber
+
+        Return Result
+    End Function
+
+    ''' <summary>
+    ''' Translates the ERROR_UNSPECIFIED code into the CADS_ERRORCODE
+    ''' </summary>
+    ''' <param name="ErrorType">One of the defined CADS_ERROR_TYPES</param>
+    ''' <param name="ErrorNumber">The ERROR_UNSPECIFIED value to translate</param>
+    ''' <returns>The CADS_ERRORCODE</returns>
+    ''' <remarks>V1.0  D. Robinson</remarks>
+    Public Function ErrorResult(ByVal ErrorType As ERRORTYPE, ByVal ErrorNumber As ERROR_UNSPECIFIED) As Int32
+        Dim Result As Int32 = (ErrorType * (2 ^ 16)) + ErrorNumber
+
+        Return Result
+    End Function
+
+    ''' <summary>
+    ''' Translates the ERROR_CRYPT code into the CADS_ERRORCODE
+    ''' </summary>
+    ''' <param name="ErrorType">One of the defined CADS_ERROR_TYPES</param>
+    ''' <param name="ErrorNumber">The ERROR_CRYPT value to translate</param>
+    ''' <returns>The CADS_ERRORCODE</returns>
+    ''' <remarks>V1.0  D. Robinson</remarks>
+    Public Function ErrorResult(ByVal ErrorType As ERRORTYPE, ByVal ErrorNumber As ERROR_CRYPT) As Int32
+        Dim Result As Int32 = (ErrorType * (2 ^ 16)) + ErrorNumber
+
+        Return Result
+    End Function
+
+    ''' <summary>
+    ''' Translates the ERROR_DIRECTORY code into the CADS_ERRORCODE
+    ''' </summary>
+    ''' <param name="ErrorType">One of the defined CADS_ERROR_TYPES</param>
+    ''' <param name="ErrorNumber">The ERROR_DIRECTORY value to translate</param>
+    ''' <returns>The CADS_ERRORCODE</returns>
+    ''' <remarks>V1.0  D. Robinson</remarks>
+    Public Function ErrorResult(ByVal ErrorType As ERRORTYPE, ByVal ErrorNumber As ERROR_DIRECTORY) As Int32
+        Dim Result As Int32 = (ErrorType * (2 ^ 16)) + ErrorNumber
+
+        Return Result
+    End Function
+
+    ''' <summary>
+    ''' Function to return the text value based on the index provided
+    ''' </summary>
+    ''' <param name="ErrorCode">The value we're looking for</param>
+    ''' <returns>A description of the Error</returns>
+    ''' <remarks>V1.1 D. Robinson</remarks>
+    Public Function GetErrorTypeAndCode(ByVal ErrorCode As Int32) As String
+        Dim ErrorString As String = ""
+        ' The passed-in Error code has two portions:
+        ' 1. Error type
+        ' 2. Error code (local)
+
+        ' Firstly, extract the type
+        Dim ErrorType As Int16 = (ErrorCode / (2 ^ 16))
+        ErrorString = "(" & [Enum].GetName(GetType(ERRORTYPE), ErrorType) & ") "
+
+        ' Now determine the code
+        Dim Remainder As Int16 = ErrorCode - (ErrorType * (2 ^ 16))
+
+        ' The output will look something like the following:
+        ' "(ERROR_FILESYSTEM) DIRECTORY_NOT_FOUND"
+        Select Case ErrorType
+            Case -1
+                ErrorString &= "Nothing"
+            Case 0
+                ErrorString &= "None"
+            Case 1
+                ErrorString &= [Enum].GetName(GetType(ERROR_FILESYSTEM), Remainder)
+            Case 2
+                ErrorString &= [Enum].GetName(GetType(ERROR_CONFIGURATION), Remainder)
+            Case 3
+                ErrorString &= [Enum].GetName(GetType(ERROR_SECURITY), Remainder)
+            Case 4
+                ErrorString &= [Enum].GetName(GetType(ERROR_CRYPT), Remainder)
+            Case 5
+                ErrorString &= [Enum].GetName(GetType(ERROR_DIRECTORY), Remainder)
+            Case 99
+                ErrorString &= [Enum].GetName(GetType(ERROR_UNSPECIFIED), Remainder)
+            Case Else
+                ErrorString &= "UNSUPPORTED_ERROR_VALUE"
+        End Select
+
+        Return ErrorString
+    End Function
+
+    ''' <summary>
+    ''' Saves an object to disk
+    ''' </summary>
+    ''' <param name="Filename">The output filename</param>
+    ''' <param name="ObjectToSerialize">An object to serialize</param>
+    ''' <returns>SUCCESS or CADS_ERRORCODE</returns>
+    ''' <remarks>V1.0  D. Robinson</remarks>
+    Public Function Serialize(ByVal Filename As String, ByVal ObjectToSerialize As Object) As Int32
+        Dim fs As New IO.FileStream(Filename, System.IO.FileMode.Create)
+        Dim formatter As New Formatters.Soap.SoapFormatter
+
+        Try
+            formatter.Serialize(fs, ObjectToSerialize)
+
+            fs.Close()
+            fs = Nothing
+            Return SUCCESS
+        Catch ex As Exception
+            Return ErrorResult(FILESYSTEM, FILE_WRITE)
+        End Try
+    End Function
+
+    ''' <summary>
+    ''' Loads an object from disk
+    ''' </summary>
+    ''' <param name="PathAndFilename">The input filename</param>
+    ''' <param name="DeserializedObject">The deserialized object</param>
+    ''' <returns>SUCCESS or CADS_ERRORCODE</returns>
+    ''' <remarks>V1.0  D. Robinson</remarks>
+    Public Function Deserialize(ByVal PathAndFilename As String, ByRef DeserializedObject As Object) As Int32
+        Dim fs As New IO.FileStream(PathAndFilename, System.IO.FileMode.Open)
+        Dim formatter As New Formatters.Soap.SoapFormatter
+
+        Try
+            DeserializedObject = formatter.Deserialize(fs)
+
+            fs.Flush()
+            fs.Close()
+            Return SUCCESS
+        Catch ex As Exception
+            Return ErrorResult(FILESYSTEM, FILE_READ)
+        End Try
+    End Function
+
+    ''' <summary>
+    ''' Returns a string representation of the input string collection, separated by the Separator character
+    ''' </summary>
+    ''' <param name="InputCollection">The Input StringCollection</param>
+    ''' <param name="Separator">The input Separator to use</param>
+    ''' <returns>String</returns>
+    ''' <remarks>V1.0 D. Robinson</remarks>
+    Public Function StringFromStringCollection(ByVal InputCollection As Specialized.StringCollection, ByVal Separator As String) As String
+        Dim OutputString As String = ""
+
+        For Each InputString As String In InputCollection
+            OutputString &= InputString & Separator
+        Next
+
+        If Right(OutputString, Len(Separator)) = Separator Then ' remove last separator character(s)
+            OutputString = Left(OutputString, Len(OutputString) - Len(Separator))
+        End If
+
+        Return OutputString.Trim
+    End Function
+
+    ''' <summary>
+    ''' Returns a string representation of the input string collection, separated by the Separator character
+    ''' </summary>
+    ''' <param name="InputCollection">The Input StringCollection</param>
+    ''' <param name="Separator">The input Separator to use</param>
+    ''' <returns>String</returns>
+    ''' <remarks>V1.0 D. Robinson</remarks>
+    Public Function StringFromOrderedDictionary(ByVal InputCollection As Specialized.OrderedDictionary, ByVal Separator As String) As String
+        Dim OutputString As String = ""
+
+        Dim i As Int16
+
+        For Each Value As String In InputCollection.Values
+            i += 1
+            OutputString &= Value & Separator
+        Next
+
+        If Right(OutputString, Len(Separator)) = Separator Then ' remove last separator character(s)
+            OutputString = Left(OutputString, Len(OutputString) - Len(Separator))
+        End If
+
+        Return OutputString.Trim
+    End Function
+
+    Public Function ValueFromSetting(ByVal ValueSettingCombination As String, Optional ByVal ArrayItemNumber As Integer = 0, Optional ByVal Delimiter As String = "|") As String
+        Dim Result As String
+        Dim Items() As String
+
+        If ValueSettingCombination <> Constants.DEFAULTSTRINGVALUE Then
+
+            Result = ValueSettingCombination
+            Items = Split(ValueSettingCombination, Delimiter)
+            Result = Items(ArrayItemNumber)
+            'Result = ValueSettingCombination.Substring(0, ValueSettingCombination.IndexOf(Delimiter))
+
+            Return Result
+        Else
+            Return Constants.DEFAULTSTRINGVALUE
+        End If
+    End Function
+
+    Public Function DetermineTargetServerName(ByVal ServerNames() As String) As String
+        Dim Server As String = ""
+        Dim Index As Integer = 0
+        Dim ServerUp As Boolean = False
+        Dim PingAttempt As Integer = 0
+
+        If ServerNames.Length = 0 Then
+            Return Constants.DEFAULTSTRINGVALUE
+        End If
+
+        Do
+            Server = ServerNames(Index)
+
+            If Server.Contains(":") Then
+                Server = Server.Substring(0, Server.IndexOf(":"))
+            End If
+
+            Do
+                PingAttempt += 1
+                FileLoggingObject.WriteEvent("Attempt number " & PingAttempt.ToString & " to contact Server '" & Server & "'", LOGGING_LEVEL.DEBUGGING)
+
+                Try
+                    FileLoggingObject.WriteEvent("Pinging " & Server, LOGGING_LEVEL.DEBUGGING)
+                    If My.Computer.Network.Ping(Server) Then
+                        ServerUp = True
+                        FileLoggingObject.WriteEvent("Server was found", LOGGING_LEVEL.DEBUGGING)
+                    End If
+                Catch ex As Exception
+                    ' Could not resolve this name - just as good as a ping failure
+                    FileLoggingObject.WriteDebugEvent("Server was not found")
+                    FileLoggingObject.WriteDebugEvent("The actual error returned was " & ex.Message)
+                End Try
+            Loop Until PingAttempt = 3 Or ServerUp
+
+            PingAttempt = 0
+
+            If Not ServerUp Then
+                Index += 1
+            End If
+        Loop Until ServerUp Or Index = ServerNames.Length
+
+            If ServerUp Then
+            Return ServerNames(Index)
+            Else
+                Return Constants.DEFAULTSTRINGVALUE
+            End If
+    End Function
+
+    Private Sub DoStartup()
+        FileLoggingObject.LogType = LOGGING_TYPE.LOGFILE
+
+        Debug.Print(FileLoggingObject.Filename)
+
+        Try
+            My.Settings.Reset()
+        Catch
+
+        End Try
+
+        Try
+            If Not IO.Directory.Exists(m_AppDataPath) Then
+                FileLoggingObject.WriteInformationEvent("Attempting to create directory: " & m_AppDataPath)
+                IO.Directory.CreateDirectory(m_AppDataPath)
+            End If
+        Catch ex1 As Exception
+            FileLoggingObject.WriteErrorEvent("Create directory failed.  The error was:")
+            FileLoggingObject.WriteErrorEvent(ex1.Message)
+            m_AppDataPath = My.Computer.FileSystem.SpecialDirectories.MyDocuments & "\CADS\4.0"
+            Try
+                If Not IO.Directory.Exists(m_AppDataPath) Then
+                    FileLoggingObject.WriteInformationEvent("Attempting to create directory: " & m_AppDataPath)
+                    IO.Directory.CreateDirectory(m_AppDataPath)
+                End If
+            Catch ex2 As Exception
+                FileLoggingObject.WriteErrorEvent("Create directory failed.  The error was:")
+                FileLoggingObject.WriteErrorEvent(ex2.Message)
+                FileLoggingObject.WriteErrorEvent("This application cannot continue.")
+                If Not m_RunningInNonInteractiveMode Then
+                    MsgBox("There have been multiple errors whilst attempting to create a working directory for the application.  Review filesystem security and the Application logfile for further information.", MsgBoxStyle.Critical, "Application Error")
+                End If
+                m_CADSConfigFileNotFound = True
+                ' Error 5 <---- required?
+            End Try
+        End Try
+
+        Dim CommandString As String = Command.ToString.ToLower
+
+        If CommandString.Length = 0 Then FileLoggingObject.LogLevel = LOGGING_LEVEL.ERRORS
+        If CommandString.Contains("-debug") Then FileLoggingObject.LogLevel = FileLoggingObject.LogLevel Or LOGGING_LEVEL.DEBUGGING
+        If CommandString.Contains("-info") Then FileLoggingObject.LogLevel = FileLoggingObject.LogLevel Or LOGGING_LEVEL.INFORMATION
+        If CommandString.Contains("-warn") Then FileLoggingObject.LogLevel = FileLoggingObject.LogLevel Or LOGGING_LEVEL.WARNING
+        If CommandString.Contains("-error") Then FileLoggingObject.LogLevel = FileLoggingObject.LogLevel Or LOGGING_LEVEL.ERRORS
+
+#If DEBUG Then
+        FileLoggingObject.LogLevel = FileLoggingObject.LogLevel Or LOGGING_LEVEL.DEBUGGING
+#End If
+        FileLoggingObject.WriteInformationEvent("------------------------------------------------------------------")
+        FileLoggingObject.WriteInformationEvent("----------------------------Startup-------------------------------")
+        FileLoggingObject.WriteInformationEvent("Logging Level set to " & FileLoggingObject.LogLevel)
+
+        If Not IO.File.Exists(m_AppDataPath & "\cads.config") Then
+            If RunningInNonInteractiveMode Then
+                FileLoggingObject.WriteErrorEvent("Application is running Non-Interactively, but cannot locate cads.config!")
+                FileLoggingObject.WriteErrorEvent("Run this application at least once interactively.")
+                FileLoggingObject.WriteErrorEvent("Logon will now be caused to fail.")
+                m_CADSConfigFileNotFound = True
+            Else
+                Dim ofdMain As New Windows.Forms.OpenFileDialog
+                Dim SelectedPath As String = ""
+
+                ofdMain.InitialDirectory = My.Computer.FileSystem.SpecialDirectories.ProgramFiles
+                ofdMain.CheckPathExists = True
+                ofdMain.Title = "Browse for cads.config"
+                ofdMain.DefaultExt = "*.config"
+                Dim dr As Windows.Forms.DialogResult = ofdMain.ShowDialog
+
+                If dr = Windows.Forms.DialogResult.OK Then
+                    SelectedPath = ofdMain.FileName.ToLower.Replace("\cads.config", "")
+                    If IO.File.Exists(SelectedPath & "\cads.config") Then
+                        FileLoggingObject.WriteDebugEvent("Found cads.config at " & SelectedPath)
+                        m_CADSConfigFileNotFound = False
+                        m_ConfigFilenameAndPath = SelectedPath & "\cads.config"
+                        Try
+                            For Each Filename As String In My.Computer.FileSystem.GetFiles(SelectedPath, FileIO.SearchOption.SearchTopLevelOnly, "*.config")
+                                Dim ShortFilename As String = Filename.Substring(Filename.LastIndexOf("\") + 1)
+                                My.Computer.FileSystem.CopyFile(Filename, m_AppDataPath & "\" & ShortFilename, True)
+                            Next
+
+                            'IO.File.Copy(SelectedPath & "\cads.config", m_AppDataPath & "\cads.config")
+                            'IO.File.Copy(SelectedPath & "\import.config", m_AppDataPath & "\import.config")
+                            m_ConfigFilenameAndPath = m_AppDataPath & "\cads.config"
+                            m_ConfigFileSourceLocation = SelectedPath  'm_AppDataPath
+                        Catch ex As Exception
+                            FileLoggingObject.WriteErrorEvent("Could not copy cads.config to " & m_AppDataPath & ".  The error message returned is shown on the next line(s).")
+                            FileLoggingObject.WriteErrorEvent(ex.Message)
+                            m_CADSConfigFileNotFound = True
+                        End Try
+                    End If
+                Else
+                    m_CADSConfigFileNotFound = True
+                End If
+            End If
+        Else
+            ' File does exist
+            'Read the path where I can get an updated copy of this file
+            m_ConfigFilenameAndPath = m_AppDataPath & "\cads.config"
+            Dim SourcePath As String = LoadConfigSetting("SystemSettings", "ConfigFileLocation")
+
+            If (SourcePath <> Constants.DEFAULTSTRINGVALUE) And SourcePath <> "" Then
+
+                Try
+                    IO.File.Copy(SourcePath & "\cads.config", m_AppDataPath & "\cads.config", True)
+                    FileLoggingObject.WriteDebugEvent("Successfully copied cads.config from '" & SourcePath & "' to '" & m_AppDataPath & "\cads.config" & "'")
+                    m_CADSConfigFileNotFound = False
+                    m_ConfigFileSourceLocation = SourcePath
+                Catch ex As Exception
+                    FileLoggingObject.WriteErrorEvent("Could not copy cads.config from '" & SourcePath & "' to '" & m_AppDataPath & "\cads.config" & "'")
+                    FileLoggingObject.WriteErrorEvent("The error message was: " & LastStatus.LastException.Message)
+                    FileLoggingObject.WriteErrorEvent("Switching to read from '" & SourcePath & "'")
+
+                    m_ConfigFilenameAndPath = SourcePath & "\cads.config"
+
+                    Dim TempFilePath As String = LoadConfigSetting("SystemSettings", "ConfigFileLocation")
+
+                    If TempFilePath = Constants.DEFAULTSTRINGVALUE Then
+                        FileLoggingObject.WriteErrorEvent("Cannot read cads.config from '" & SourcePath & "'")
+                        FileLoggingObject.WriteErrorEvent("The error message was: " & LastStatus.LastException.Message)
+                        m_CADSConfigFileNotFound = True
+                    Else
+                        m_ConfigFilenameAndPath = TempFilePath & "\cads.config"
+                        m_CADSConfigFileNotFound = False
+                    End If
+                End Try
+            Else
+                ' BAD!  could not find the correct location to the config file!
+                FileLoggingObject.WriteErrorEvent("Could not read ConfigFileLocation from config file '" & SourcePath & "'")
+                MsgBox("Could not read ConfigFileLocation from config file '" & m_AppDataPath & "\cads.config" & "'", MsgBoxStyle.Critical + MsgBoxStyle.OkOnly)
+                ' IO.File.Copy(SourcePath & "\cads.config", m_AppDataPath & "\cads.config", True)
+                Dim ofdMain As New Windows.Forms.OpenFileDialog
+                Dim SelectedPath As String = ""
+
+                ofdMain.InitialDirectory = My.Computer.FileSystem.SpecialDirectories.ProgramFiles
+                ofdMain.CheckPathExists = True
+                ofdMain.Title = "Browse for cads.config"
+                ofdMain.DefaultExt = "*.config"
+                Dim dr As Windows.Forms.DialogResult = ofdMain.ShowDialog
+
+                If dr = Windows.Forms.DialogResult.OK Then
+                    SelectedPath = ofdMain.FileName.ToLower.Replace("\cads.config", "")
+                    If IO.File.Exists(SelectedPath & "\cads.config") Then
+                        m_ConfigFilenameAndPath = SelectedPath & "\cads.config"
+                        m_CADSConfigFileNotFound = False
+                        m_ConfigFileSourceLocation = SelectedPath
+                    Else
+                        ' This case should not happen.  The Open file dialog should check for the file
+                        ' before we get to this point
+                        m_CADSConfigFileNotFound = True
+                    End If
+                End If
+            End If
+        End If
+
+    End Sub
+
+    Public Shared Function GetNetworkFolders(ByVal oFolderBrowserDialog As Windows.Forms.FolderBrowserDialog) As String
+        '======= Get type of Folder Dialog bog
+        Dim type As Type = oFolderBrowserDialog.[GetType]
+        '======== Get Fieldinfo for rootfolder.
+        Dim fieldInfo As Reflection.FieldInfo = type.GetField("rootFolder", BindingFlags.NonPublic Or BindingFlags.Instance)
+        '========= Now set the value for Folder Dialog using DirectCast
+        '=== 18 = Network Neighborhood is the root
+        fieldInfo.SetValue(oFolderBrowserDialog, DirectCast(18, Environment.SpecialFolder))
+        '==== if user click on Ok, then it will return the selected folder.
+        '===== otherwise return the blank string.
+        If oFolderBrowserDialog.ShowDialog() = Windows.Forms.DialogResult.OK Then
+            Return oFolderBrowserDialog.SelectedPath
+        Else
+            Return Constants.DEFAULTSTRINGVALUE
+        End If
+    End Function
+
+    Public Function ConvertGUIDToString(ByRef GUIDString) As String
+        Dim ReturnString As String = ""
+
+        For Count = 0 To GUIDString.Length - 1
+            ReturnString = ReturnString + Hex(GUIDString(Count))
+        Next
+
+        Return ReturnString
+    End Function
+
+#End Region
+
+#Region " Directory "
+
+    ''' <summary>
+    ''' Returns a list of User Attributes
+    ''' </summary>
+    ''' <returns>The Attribute Collection</returns>
+    ''' <remarks>V1.0 D. Robinson</remarks>
+    Public Function GetADUserAttributeList() As Collections.Specialized.OrderedDictionary
+        Dim SearchRoot As New DirectoryEntry(InteractiveUserActiveDirectoryPath, Nothing, Nothing, AuthenticationTypes.Secure)
+        Dim AttributeCollection As New Collections.Specialized.OrderedDictionary
+        ' TODO:  Consider if we should return a failure if the path does not exist
+        Using SearchRoot
+            Dim ds As New DirectorySearcher("objectClass=user")
+
+            ds.SizeLimit = 1
+
+            Dim sr As SearchResult = ds.FindOne
+
+            If sr IsNot Nothing Then
+                Using User As DirectoryEntry = sr.GetDirectoryEntry()
+                    Using Schema As DirectoryEntry = User.SchemaEntry
+                        Dim t As Type = Schema.NativeObject.[GetType]()
+
+                        Dim [optional] As Object = t.InvokeMember("OptionalProperties", BindingFlags.[Public] Or BindingFlags.GetProperty, Nothing, Schema.NativeObject, Nothing)
+                        Dim count As Integer = 0
+                        If TypeOf [optional] Is System.Collections.ICollection Then
+                            For Each s As String In DirectCast([optional], System.Collections.ICollection)
+                                AttributeCollection.Add(s.ToString, s.ToString)
+                            Next
+                        End If
+
+                        Dim Mand As Object = t.InvokeMember("MandatoryProperties", BindingFlags.[Public] Or BindingFlags.GetProperty, Nothing, Schema.NativeObject, Nothing)
+                        If TypeOf Mand Is System.Collections.ICollection Then
+                            For Each s As String In DirectCast(Mand, System.Collections.ICollection)
+                                AttributeCollection.Add(s.ToString, s.ToString)
+                            Next
+                        End If
+                    End Using
+                End Using
+            End If
+        End Using
+
+        Return AttributeCollection
+    End Function
+
+    ''' <summary>
+    ''' Connect to the Directory with the Connection parameters
+    ''' </summary>
+    ''' <param name="ADPathToConnect"></param>
+    ''' <returns>DirectoryEntry connected to the ADPath</returns>
+    ''' <remarks>V1.0 D. Robinson</remarks>
+    Public Function GetDirectoryConnection(ByVal ADPathToConnect As String) As DirectoryEntry
+        Try
+            Dim Connection As New DirectoryServices.DirectoryEntry(ADPathToConnect, TargetDirectoryConnectionUsername, TargetDirectoryConnectionPassword, AuthenticationTypes.ServerBind)
+
+            LastStatus.Clear()
+            LastStatus.CADS_ERRORCODE = SUCCESS
+
+            Return Connection
+        Catch ex As Exception
+            LastStatus.LastException = ex
+
+            Select Case ex.Message.Trim
+                Case "The server is not operational."
+                    LastStatus.CADS_ERRORCODE = ErrorResult(ERRORTYPE.DIRECTORY, ERROR_DIRECTORY.SERVER_NOT_FOUND)
+                Case "Logon failure: unknown user name or bad password."
+                    LastStatus.CADS_ERRORCODE = ErrorResult(ERRORTYPE.SECURITY, ERROR_SECURITY.AUTHENTICATION_FAILURE)
+                Case "A local error has occurred."
+                    LastStatus.CADS_ERRORCODE = ErrorResult(ERRORTYPE.DIRECTORY, ERROR_DIRECTORY.DIRECTORY_ERROR)
+                Case Else
+                    LastStatus.CADS_ERRORCODE = ErrorResult(ERRORTYPE.DIRECTORY, ERROR_DIRECTORY.DIRECTORY_ERROR)
+            End Select
+
+            Return Nothing
+        End Try
+    End Function
+
+    ''' <summary>
+    ''' Check if the given Directory path exists
+    ''' </summary>
+    ''' <param name="DirectoryPath">Fully qualified LDAP Path in the form 'LDAP://[Server:Port/]dc=Name,dc=COM'</param>
+    ''' <returns>Boolean value indicating the result of the search</returns>
+    ''' <remarks>V1.0 D. Robinson</remarks>
+    Public Function LDAPObjectExists(ByVal DirectoryPath As String) As Boolean
+        Dim oSearcher As New DirectorySearcher()
+
+        Try
+            With oSearcher
+                .SearchRoot = New DirectoryEntry(DirectoryPath)
+                .SearchScope = SearchScope.Subtree
+                .Filter = "(objectClass=*)"
+                .FindOne()
+            End With
+            oSearcher = Nothing
+
+            LastStatus.CADS_ERRORCODE = SUCCESS
+            LastStatus.LastException = Nothing
+            'Settings.LastError = ApplicationStatus
+            Return True
+        Catch ex As Exception
+            ' Nothing required here.  An incorrect path will result in an exception which is ok.
+            LastStatus.LastException = ex
+            LastStatus.CADS_ERRORCODE = SUCCESS
+            Return False
+        End Try
+
+    End Function
+
+    ''' <summary>
+    ''' Checks if the given Object name exists in the Directory
+    ''' </summary>
+    ''' <param name="distinguishedName">An object name to look for</param>
+    ''' <returns>Boolean value indicating the result of the search</returns>
+    ''' <remarks>V1.0 D. Robinson</remarks>
+    Public Function ObjectExists(ByVal distinguishedName As String) As Boolean
+        Try
+            If distinguishedName.StartsWith("LDAP://") Then
+                LastStatus.CADS_ERRORCODE = SUCCESS
+                LastStatus.LastException = Nothing
+                Return DirectoryEntry.Exists(distinguishedName)
+            Else
+                LastStatus.CADS_ERRORCODE = SUCCESS
+                LastStatus.LastException = Nothing
+                Return DirectoryEntry.Exists(CurrentDirectoryServer & distinguishedName)
+            End If
+
+        Catch ex As Exception
+            Select Case ex.Message.ToString.Trim
+                Case "A referral was returned from the server."
+                    LastStatus.CADS_ERRORCODE = ERROR_DIRECTORY.REFERRAL_RETURNED
+                    LastStatus.LastException = ex
+                    Return False
+                Case "A local error has occurred."
+                    LastStatus.CADS_ERRORCODE = ERROR_DIRECTORY.DIRECTORY_ERROR
+                    LastStatus.LastException = ex
+                    Return False
+                Case Else
+                    LastStatus.CADS_ERRORCODE = ERROR_DIRECTORY.AUTHENTICATION_FAILURE
+                    LastStatus.LastException = ex
+                    Return False
+            End Select
+        End Try
+
+    End Function
+
+    Public Function UserExists(ByVal distinguishedName As String, ByVal CommonName As String) As Boolean
+        Dim de As DirectoryEntry
+        Dim deSearch As DirectorySearcher
+        Dim Result As Boolean
+
+        Try
+            de = New DirectoryEntry("LDAP://" & CurrentDirectoryServer & distinguishedName, TargetDirectoryConnectionUsername, TargetDirectoryConnectionPassword, AuthenticationTypes.ServerBind)
+            deSearch = New DirectorySearcher(de)
+            deSearch.Filter = "(&(ObjectClass=user)(cn=" & CommonName.Trim & "))"
+
+            Dim Results As SearchResult = deSearch.FindOne()
+            Result = Results.Path <> ""
+            de.Close()
+        Catch ex As Exception
+            'Produce a new error code
+            LastStatus.Clear()
+            LastStatus.LastException = ex
+            LastStatus.CADS_ERRORCODE = ErrorResult(ERRORTYPE.UNSPECIFIED, ERROR_UNSPECIFIED.OTHER)
+        End Try
+
+        deSearch = Nothing
+        de = Nothing
+
+        'Produce a new error code
+        LastStatus.Clear()
+        LastStatus.CADS_ERRORCODE = ERRORTYPE.SUCCESS
+        Return Result
+    End Function
+
+    Public Function CreateUser(ByVal TargetOUDN As String, ByVal UserCN As String) As DirectoryEntry
+        Dim NewUser As DirectoryEntry = Nothing
+        Dim LDAPServerNameAndPort As String
+        Dim CN As String
+
+        ' Ensure prefix for the Server is correct
+        If Not CurrentDirectoryServer.StartsWith("LDAP://") Then
+            LDAPServerNameAndPort = "LDAP://" & CurrentDirectoryServer
+        Else
+            LDAPServerNameAndPort = CurrentDirectoryServer
+        End If
+
+        ' Ensure Suffix of the Server is correct
+        If Not CurrentDirectoryServer.EndsWith("/") Then
+            LDAPServerNameAndPort = CurrentDirectoryServer & "/"
+        Else
+            LDAPServerNameAndPort = CurrentDirectoryServer
+        End If
+
+        ' Ensure CN prefix is correct
+        If Not UserCN.StartsWith("CN=") Then
+            CN = "CN=" & UserCN
+        Else
+            CN = UserCN
+        End If
+
+        Try
+            'Bind to the directory object and create user
+            DirectoryConnection = New DirectoryEntry(LDAPServerNameAndPort & TargetOUDN, TargetDirectoryConnectionUsername, TargetDirectoryConnectionPassword, AuthenticationTypes.ServerBind)
+            NewUser = DirectoryConnection.Children.Add(UserCN, "User")
+            NewUser.CommitChanges()
+
+            LastStatus.Clear()
+            LastStatus.CADS_ERRORCODE = SUCCESS
+            LastStatus.LastException = Nothing
+        Catch ex As Exception
+            LastStatus.Clear()
+            LastStatus.CADS_ERRORCODE = ERROR_DIRECTORY.CREATE_USER_ERROR
+            LastStatus.LastException = ex
+        End Try
+
+        Return NewUser
+
+    End Function
+
+    ''' <summary>
+    ''' Check the given Username and Password against the given AD Server
+    ''' </summary>
+    ''' <param name="DirectoryPath">Fully qualified LDAP Path in the form 'LDAP://[Server:Port/]dc=Name,dc=COM'</param>
+    ''' <param name="DomainAndUsername">The Username to check (including Domain Name)</param>
+    ''' <param name="Password">The Password to check</param>
+    ''' <returns>Boolean value indicating the result</returns>
+    ''' <remarks></remarks>
+    Public Function CheckADPassword(ByVal DirectoryPath As String, ByVal DomainAndUsername As String, ByVal Password As String) As Boolean
+        Dim de As DirectoryEntry = New DirectoryEntry(DirectoryPath, DomainAndUsername, Password)
+
+        Try
+            'Bind to the native AdsObject to force authentication.
+            Dim obj As Object = de.NativeObject
+            Try
+                Dim Search As DirectorySearcher = New DirectorySearcher(de)
+
+                Search.Filter = "(sAMAccountName=" & DomainAndUsername.Substring(DomainAndUsername.IndexOf("\") + 1) & ")"
+                Search.PropertiesToLoad.Add("cn")
+                Dim SearchResult As SearchResult = Search.FindOne()
+
+                If (SearchResult Is Nothing) Then
+                    LastStatus.CADS_ERRORCODE = SUCCESS
+                    LastStatus.LastException = Nothing
+                    de.Close()
+                    Return False
+                End If
+
+                LastStatus.CADS_ERRORCODE = SUCCESS
+                LastStatus.LastException = Nothing
+                Return True
+            Catch ex As Exception
+                ' Nothing required here.  An incorrect path will result in an exception which is ok.
+                LastStatus.CADS_ERRORCODE = SUCCESS
+                LastStatus.LastException = ex
+                de.Close()
+                Return False
+            End Try
+        Catch ex As Exception
+            Select Case ex.Message.ToString.Trim
+                Case "A referral was returned from the server."
+                    LastStatus.CADS_ERRORCODE = ERROR_DIRECTORY.REFERRAL_RETURNED
+                    LastStatus.LastException = ex
+                    Return False
+                Case "A local error has occurred."
+                    LastStatus.CADS_ERRORCODE = ERROR_DIRECTORY.DIRECTORY_ERROR
+                    LastStatus.LastException = ex
+                Case Else
+                    LastStatus.CADS_ERRORCODE = ERROR_DIRECTORY.AUTHENTICATION_FAILURE
+                    LastStatus.LastException = ex
+                    Return False
+            End Select
+        End Try
+
+    End Function
+
+    ''' <summary>
+    ''' Check the given Username and Password against the given ADAM Server
+    ''' </summary>
+    ''' <param name="DirectoryPath">Fully qualified LDAP Path in the form 'LDAP://[Server:Port/]dc=Name,dc=COM'</param>
+    ''' <param name="Username">The Username to check</param>
+    ''' <param name="Password">The Password to check</param>
+    ''' <returns>Boolean value indicating the result</returns>
+    ''' <remarks></remarks>
+    Public Function CheckADAMPassword(ByVal DirectoryPath As String, ByVal Username As String, ByVal Password As String) As Boolean
+        Dim de As DirectoryEntry = New DirectoryEntry(DirectoryPath, Username, Password, AuthenticationTypes.ServerBind)
+
+        Try
+            'Bind to the native AdsObject to force authentication.
+            Dim obj As Object = de.NativeObject
+            Try
+                Dim Search As DirectorySearcher = New DirectorySearcher(de)
+
+                LastStatus.CADS_ERRORCODE = SUCCESS
+                LastStatus.LastException = Nothing
+                de.Close()
+
+                Return True
+            Catch ex As Exception
+                ' Nothing required here.  An incorrect path will result in an exception which is ok.
+                LastStatus.CADS_ERRORCODE = SUCCESS
+                LastStatus.LastException = ex
+                de.Close()
+
+                Return False
+            End Try
+        Catch ex As Exception
+            de.Close()
+            Select Case ex.Message.ToString.Trim
+                Case "A referral was returned from the server."
+                    LastStatus.CADS_ERRORCODE = ERROR_DIRECTORY.REFERRAL_RETURNED
+                    LastStatus.LastException = ex
+
+                    Return False
+                Case "A local error has occurred."
+                    LastStatus.CADS_ERRORCODE = ERROR_DIRECTORY.DIRECTORY_ERROR
+                    LastStatus.LastException = ex
+
+                    Return False
+                Case "Logon failure: unknown user name or bad password."
+                    LastStatus.CADS_ERRORCODE = ERROR_DIRECTORY.AUTHENTICATION_FAILURE
+                    LastStatus.LastException = ex
+
+                    Return False
+                Case Else
+                    LastStatus.CADS_ERRORCODE = ERROR_SECURITY.GENERIC_SECURITY_ERROR
+                    LastStatus.LastException = ex
+
+                    Return False
+            End Select
+
+        End Try
+
+    End Function
+
+    ''' <summary>
+    ''' Creates a Organizational unit to callers criteria
+    ''' </summary>
+    ''' <param name="NewOUDistinguishedName">The path of the new OU</param>
+    ''' <returns>CADS4 ERROR_CODE</returns>
+    ''' <remarks>V1.1 D. Robinson</remarks>
+    Public Function CreateOU(ByVal NewOUDistinguishedName As String) As DirectoryEntry
+        Dim OU As DirectoryEntry = Nothing ' Organizational Unit.
+
+        Try
+            Dim OUName As String           ' Organizational Unit Name.
+            Dim Path As String             ' Binding path.
+
+            ' Construct the binding string.
+            Path = NewOUDistinguishedName
+
+            If Not NewOUDistinguishedName.StartsWith("LDAP://") Then
+                OUName = Path
+            Else
+                ' Specify Organizational Unit.
+                Dim i As Integer = Path.IndexOf("//", 0)
+                OUName = Path.Remove(0, i + 2)
+                Dim j As Integer = OUName.IndexOf("/", 0)
+                OUName = OUName.Remove(j)
+
+                'Specify the path.
+                Path = Path.Remove(i + 2, j + 1)
+            End If
+
+            DirectoryConnection = New DirectoryEntry(Path, TargetDirectoryConnectionUsername, TargetDirectoryConnectionPassword, AuthenticationTypes.ServerBind)
+            DirectoryConnection.RefreshCache()
+            OU = DirectoryConnection.Children.Add(OUName, "OrganizationalUnit")
+
+            OU.CommitChanges()
+            OU.Close()
+            OU = Nothing
+
+            LastStatus.Clear()
+            LastStatus.CADS_ERRORCODE = SUCCESS
+            LastStatus.LastException = Nothing
+
+        Catch ex As Exception
+            LastStatus.Clear()
+            LastStatus.CADS_ERRORCODE = ERROR_DIRECTORY.CREATE_OU_ERROR
+            LastStatus.LastException = ex
+        End Try
+
+        Return OU
+
+    End Function
+
+    ''' <summary>
+    ''' Prompt user for their password.  The user's current Username is already filled-in
+    ''' </summary>
+    ''' <remarks>NOT IMPLEMENTED</remarks>
+    Public Sub GetInteractiveUserAuthenticationDetails(Optional ByVal ConnectToAD As Boolean = False)
+        Dim LoginForm As New frmLogin
+
+        LoginForm.ShowDialog()
+
+        InteractiveUserUsername = LoginForm.txtUsername.Text
+        InteractiveUserPassword =REDACTED
+
+        'If ConnectToADAM Then
+        'Else
+        'End If
+
+        LastStatus.CADS_ERRORCODE = ERROR_UNSPECIFIED.NOT_IMPLEMENTED
+        LastStatus.LastException = Nothing
+
+    End Sub
+
+    ''' <summary>
+    ''' Returns the list of Active Directory sites
+    ''' </summary>
+    ''' <returns>StringCollection of AD Site names</returns>
+    ''' <remarks>V1.0 D. Robinson</remarks>
+    Public Function GetADSitelist() As Collections.Specialized.OrderedDictionary
+        Dim ADSitelist As New Collections.Specialized.OrderedDictionary
+        Dim RootDSE As New Object
+        Dim ConfigurationNC As String
+        Dim SitesContainerName As String
+
+        RootDSE = GetObject("LDAP://RootDSE")
+        ConfigurationNC = RootDSE.Get("configurationNamingContext")
+
+        SitesContainerName = "LDAP://cn=Sites," & ConfigurationNC
+
+        Dim oSearcher As New DirectorySearcher()
+
+        Try
+            With oSearcher
+                .SearchRoot = New DirectoryEntry(SitesContainerName)
+                .SearchScope = SearchScope.Subtree
+                .Filter = "(objectClass=site)"
+            End With
+
+        Catch ex As Exception
+            ' If we can't get the list of sites, we are in trouble.
+            LastStatus.LastException = ex
+            LastStatus.CADS_ERRORCODE = ErrorResult(ERRORTYPE.DIRECTORY, ERROR_DIRECTORY.DIRECTORY_ERROR)
+        End Try
+
+        For Each Site As SearchResult In oSearcher.FindAll
+            ADSitelist.Add(Site.Properties("Name")(0).ToString, Site.Properties("Name")(0).ToString)
+        Next
+
+        LastStatus.CADS_ERRORCODE = SUCCESS
+
+        Return ADSitelist
+    End Function
+
+    ''' <summary>
+    ''' Retrives the list of users from the current user's AD
+    ''' </summary>
+    ''' <param name="RootDN">The Root distinguished name to search in the form "OU=Users,OU=Unit"</param>
+    ''' <returns>Collection of strings</returns>
+    ''' <remarks>V1.0 D. Robinson</remarks>
+    Public Function GetADUserList(Optional ByVal RootDN As String = "") As Collections.Specialized.OrderedDictionary
+        Dim ADUserList As New Collections.Specialized.OrderedDictionary
+        Dim RootDSE As New Object
+        Dim DefaultNC As String
+        Dim UserContainerName As String
+
+        RootDSE = GetObject("LDAP://RootDSE")
+        DefaultNC = RootDSE.Get("defaultNamingContext")
+
+        If RootDN <> "" Then
+            UserContainerName = "LDAP://" & RootDN & "," & DefaultNC
+        Else
+            UserContainerName = "LDAP://" & DefaultNC
+        End If
+
+        Dim oSearcher As New DirectorySearcher()
+
+        Try
+            With oSearcher
+                .SearchRoot = New DirectoryEntry(UserContainerName)
+                .SearchScope = SearchScope.Subtree
+                .Filter = "(objectClass=user)"
+            End With
+
+        Catch ex As Exception
+            ' If we can't get the list of users, we are in trouble.
+            LastStatus.LastException = ex
+            LastStatus.CADS_ERRORCODE = ErrorResult(ERRORTYPE.DIRECTORY, ERROR_DIRECTORY.DIRECTORY_ERROR)
+        End Try
+
+        For Each User As SearchResult In oSearcher.FindAll
+            Dim Username As String = User.Properties("samAccountName")(0).ToString
+            If Not Username.EndsWith("$") Then ' Don't show Computernames
+                ADUserList.Add(User.Properties("samAccountName")(0).ToString, User.Properties("samAccountName")(0).ToString)
+            End If
+        Next
+
+        LastStatus.CADS_ERRORCODE = SUCCESS
+
+        Return ADUserList
+    End Function
+
+    ''' <summary>
+    ''' Disables the given User DN
+    ''' </summary>
+    ''' <param name="UserDistinguishedName">The distinguishedName of the User to disable</param>
+    ''' <remarks>V1.0 D. Robinson</remarks>
+    Public Sub DisableUser(ByVal UserDistinguishedName As String)
+        Try
+            Dim User As New DirectoryEntry(UserDistinguishedName)
+            Dim Value As Int32 = User.Properties("userAccountControl").Value
+
+            User.Properties("userAccountControl").Value = Value Or 2
+
+            User.CommitChanges()
+            User.Close()
+            LastStatus.CADS_ERRORCODE = SUCCESS
+
+        Catch ex As Exception
+            LastStatus.LastException = ex
+            LastStatus.CADS_ERRORCODE = (ErrorResult(ERRORTYPE.DIRECTORY, ERROR_DIRECTORY.AUTHENTICATION_FAILURE))
+
+        End Try
+
+    End Sub
+
+    ''' <summary>
+    ''' Enables the given User DN
+    ''' </summary>
+    ''' <param name="UserDistinguishedName">The distinguishedName of the User to enable</param>
+    ''' <remarks>V1.0 D. Robinson</remarks>
+    Public Sub EnableUser(ByVal UserDistinguishedName As String)
+        Try
+            Dim User As New DirectoryEntry(UserDistinguishedName)
+            Dim Value As Int32 = User.Properties("userAccountControl").Value
+
+            User.Properties("userAccountControl").Value = Value And 2
+
+            User.CommitChanges()
+            User.Close()
+            LastStatus.CADS_ERRORCODE = SUCCESS
+
+        Catch ex As Exception
+            LastStatus.LastException = ex
+            LastStatus.CADS_ERRORCODE = ErrorResult(ERRORTYPE.DIRECTORY, ERROR_DIRECTORY.AUTHENTICATION_FAILURE)
+
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' Sets the manager property of the given User
+    ''' </summary>
+    ''' <param name="UserDistinguishedName">The distinguishedName of the User to modify</param>
+    ''' <param name="ManagerDistinguishedName">The distinguishedName of the Manager User</param>
+    ''' <remarks>V1.0 D. Robinson</remarks>
+    Public Sub SetManager(ByVal UserDistinguishedName As String, ByVal ManagerDistinguishedName As String)
+        Dim User As DirectoryEntry
+
+        If TargetDirectoryConnectionUsername = "" And (Not ConnectAnonymously) Then
+            LastStatus.CADS_ERRORCODE = ErrorResult(ERRORTYPE.DIRECTORY, ERROR_DIRECTORY.NO_USERNAME)
+
+        Else
+            Try
+                If ConnectAnonymously Then
+                    User = New DirectoryEntry("LDAP://" & CurrentDirectoryServer & UserDistinguishedName)
+                Else
+                    User = New DirectoryEntry("LDAP://" & CurrentDirectoryServer & UserDistinguishedName, TargetDirectoryConnectionUsername, TargetDirectoryConnectionPassword, AuthenticationTypes.ServerBind)
+                End If
+
+                User.Properties("manager").Value = ManagerDistinguishedName
+
+                User.CommitChanges()
+                User.Close()
+                User = Nothing
+            Catch ex As Exception
+                Select Case ex.Message.ToString.Trim
+                    Case "A referral was returned from the server."
+                        FileLoggingObject.WriteErrorEvent("Error 1 in SetManager(). Debugging information follows:")
+                        FileLoggingObject.WriteErrorEvent("UserDistinguishedName   : " & UserDistinguishedName)
+                        FileLoggingObject.WriteErrorEvent("ManagerDistinguishedName: " & ManagerDistinguishedName)
+                        FileLoggingObject.WriteErrorEvent("The line(s) between the asterisks contain the Exception message.")
+                        FileLoggingObject.WriteErrorEvent("************************************************************************")
+                        FileLoggingObject.WriteErrorEvent(ex.Message)
+                        FileLoggingObject.WriteErrorEvent("************************************************************************")
+                        LastStatus.LastException = ex
+                        LastStatus.CADS_ERRORCODE = ErrorResult(ERRORTYPE.SECURITY, ERROR_DIRECTORY.REFERRAL_RETURNED)
+
+                    Case "A local error has occurred."
+                        FileLoggingObject.WriteErrorEvent("Error 2 in SetManager(). Debugging information follows:")
+                        FileLoggingObject.WriteErrorEvent("UserDistinguishedName   : " & UserDistinguishedName)
+                        FileLoggingObject.WriteErrorEvent("ManagerDistinguishedName: " & ManagerDistinguishedName)
+                        FileLoggingObject.WriteErrorEvent("The line(s) between the asterisks contain the Exception message.")
+                        FileLoggingObject.WriteErrorEvent("************************************************************************")
+                        FileLoggingObject.WriteErrorEvent(ex.Message)
+                        FileLoggingObject.WriteErrorEvent("************************************************************************")
+                        LastStatus.LastException = ex
+                        LastStatus.CADS_ERRORCODE = ErrorResult(ERRORTYPE.DIRECTORY, ERROR_DIRECTORY.DIRECTORY_ERROR)
+
+                    Case "Logon failure: unknown user name or bad password."
+                        FileLoggingObject.WriteErrorEvent("Error 3 in SetManager(). Debugging information follows:")
+                        FileLoggingObject.WriteErrorEvent("UserDistinguishedName   : " & UserDistinguishedName)
+                        FileLoggingObject.WriteErrorEvent("ManagerDistinguishedName: " & ManagerDistinguishedName)
+                        FileLoggingObject.WriteErrorEvent("The line(s) between the asterisks contain the Exception message.")
+                        FileLoggingObject.WriteErrorEvent("************************************************************************")
+                        FileLoggingObject.WriteErrorEvent(ex.Message)
+                        FileLoggingObject.WriteErrorEvent("************************************************************************")
+                        LastStatus.LastException = ex
+                        LastStatus.CADS_ERRORCODE = ErrorResult(ERRORTYPE.SECURITY, ERROR_SECURITY.AUTHENTICATION_FAILURE)
+
+                    Case Else
+                        FileLoggingObject.WriteErrorEvent("Error 4 in SetManager(). Debugging information follows:")
+                        FileLoggingObject.WriteErrorEvent("UserDistinguishedName   : " & UserDistinguishedName)
+                        FileLoggingObject.WriteErrorEvent("ManagerDistinguishedName: " & ManagerDistinguishedName)
+                        FileLoggingObject.WriteErrorEvent("The line(s) between the asterisks contain the Exception message.")
+                        FileLoggingObject.WriteErrorEvent("************************************************************************")
+                        FileLoggingObject.WriteErrorEvent(ex.Message)
+                        FileLoggingObject.WriteErrorEvent("************************************************************************")
+                        LastStatus.LastException = ex
+                        LastStatus.CADS_ERRORCODE = ErrorResult(ERRORTYPE.SECURITY, ERROR_SECURITY.AUTHENTICATION_FAILURE)
+
+                End Select
+
+            End Try
+        End If
+    End Sub
+
+    ''' <summary>
+    ''' Moves the User to the destination location
+    ''' </summary>
+    ''' <param name="UserDistinguishedName">The User distinguishedName</param>
+    ''' <param name="NewOUDistinguishedName">Destination OU distinguishedName</param>
+    ''' <remarks>V1.0 D. Robinson</remarks>
+    Public Sub MoveUser(ByVal UserDistinguishedName As String, ByVal NewOUDistinguishedName As String)
+
+        'If UserDistinguishedName.ToLower.StartsWith("ldap://" & CurrentDirectoryServer) Then
+        '    UserDistinguishedName = UserDistinguishedName.Substring(7 + CurrentDirectoryServer.Length)
+        'End If
+
+        'If NewOUDistinguishedName.ToLower.StartsWith("ldap://" & CurrentDirectoryServer) Then
+        '    NewOUDistinguishedName = NewOUDistinguishedName.Substring(7 + CurrentDirectoryServer.Length)
+        'End If
+
+        Try
+            'Dim User As New DirectoryEntry(CurrentDirectoryServer & UserDistinguishedName)
+            Dim User As New DirectoryEntry(UserDistinguishedName)
+            'Dim DestinationOU As DirectoryEntry = New DirectoryEntry(CurrentDirectoryServer & NewOUDistinguishedName)
+            Dim DestinationOU As DirectoryEntry = New DirectoryEntry(NewOUDistinguishedName)
+
+            User.MoveTo(DestinationOU)
+
+            User.Close()
+            DestinationOU.Close()
+            LastStatus.CADS_ERRORCODE = SUCCESS
+
+        Catch ex As Exception
+            LastStatus.CADS_ERRORCODE = ErrorResult(ERRORTYPE.DIRECTORY, ERROR_DIRECTORY.OTHER)
+            LastStatus.LastException = ex
+            FileLoggingObject.WriteErrorEvent("Could not move user object.  The error returned is contained in the following line(s)")
+            FileLoggingObject.WriteErrorEvent(ex.Message)
+        End Try
+
+    End Sub
+
+    Public Sub SetCustomProperties(ByVal DistinguishedName As String, ByVal PropertyStringCollection As Collections.Specialized.StringCollection)
+        Dim User As DirectoryEntry
+        Dim LDAPPrefix As String = "LDAP://"
+
+        Debug.Print("Inside SetCustomProperties...")
+
+        If CurrentDirectoryServer.StartsWith("LDAP://") Then LDAPPrefix = ""
+
+        Debug.Print("   Prefix  : " & LDAPPrefix)
+        Debug.Print("   Server  : " & CurrentDirectoryServer)
+        Debug.Print("   DN      : " & DistinguishedName)
+        Debug.Print("   Username: "REDACTED"   Password: "REDACTED"" And (Not ConnectAnonymously) Then
+                        LastStatus.CADS_ERRORCODE = ErrorResult(ERRORTYPE.DIRECTORY, ERROR_DIRECTORY.NO_USERNAME)
+                    Else
+                        If ConnectAnonymously Then
+                            Debug.Print("Connecting to Directory (anon)...")
+                            User = New DirectoryEntry(CurrentDirectoryServer & DistinguishedName)
+                        Else
+                            Debug.Print("Connecting to Directory (user specified)...")
+                            User = New DirectoryEntry(LDAPPrefix & CurrentDirectoryServer & DistinguishedName, TargetDirectoryConnectionUsername, TargetDirectoryConnectionPassword, AuthenticationTypes.ServerBind)
+                        End If
+
+                        User.RefreshCache()
+                        For Each UserProperty As String In PropertyStringCollection
+                            Debug.Print("..." & UserProperty)
+                            User.Properties("wbemPath").Add(UserProperty)
+                        Next
+
+                        User.CommitChanges()
+                        User.Close()
+                        User = Nothing
+                        LastStatus.CADS_ERRORCODE = SUCCESS
+                    End If
+                Else
+                    LastStatus.CADS_ERRORCODE = ErrorResult(UNSPECIFIED, ERROR_UNSPECIFIED.SYNTAX_ERROR)
+                End If
+            Catch ex As Exception
+                LastStatus.LastException = ex
+                LastStatus.CADS_ERRORCODE = ErrorResult(ERRORTYPE.DIRECTORY, ERROR_DIRECTORY.OTHER)
+            End Try
+        Else
+            LastStatus.CADS_ERRORCODE = ErrorResult(UNSPECIFIED, ERROR_UNSPECIFIED.WRONG_OBJECT_TYPE)
+        End If
+
+    End Sub
+
+    Public Function GetCustomProperties(ByVal DistinguishedName As String) As Collections.Specialized.StringCollection
+        Dim User As DirectoryEntry
+        Dim PropertyStringCollection As New Collections.Specialized.StringCollection
+
+        Try
+            If DistinguishedName.Length > 0 Then
+                If TargetDirectoryConnectionUsername = "" And (Not ConnectAnonymously) Then
+                    LastStatus.CADS_ERRORCODE = ErrorResult(ERRORTYPE.DIRECTORY, ERROR_DIRECTORY.NO_USERNAME)
+
+                    Return PropertyStringCollection
+                Else
+                    If ConnectAnonymously Then
+                        User = New DirectoryEntry(CurrentDirectoryServer & DistinguishedName)
+                    Else
+                        User = New DirectoryEntry(CurrentDirectoryServer & DistinguishedName, TargetDirectoryConnectionUsername, TargetDirectoryConnectionPassword, AuthenticationTypes.ServerBind)
+                    End If
+
+                    User.RefreshCache()
+
+                    Dim ValueCollection As PropertyValueCollection = User.Properties("wbemPath")
+                    Dim en As IEnumerator
+
+                    en = ValueCollection.GetEnumerator
+
+                    While en.MoveNext
+                        If en.Current IsNot Nothing Then
+                            PropertyStringCollection.Add(en.Current.ToString)
+                        End If
+                    End While
+
+                    User.Close()
+                    LastStatus.CADS_ERRORCODE = SUCCESS
+
+                    Return PropertyStringCollection
+                End If
+            Else
+                LastStatus.CADS_ERRORCODE = ErrorResult(UNSPECIFIED, ERROR_UNSPECIFIED.SYNTAX_ERROR)
+
+                Return PropertyStringCollection
+            End If
+
+        Catch ex As Exception
+            LastStatus.LastException = ex
+            LastStatus.CADS_ERRORCODE = ErrorResult(ERRORTYPE.DIRECTORY, ERROR_DIRECTORY.OTHER)
+
+            Return PropertyStringCollection
+        End Try
+    End Function
+
+    Public Function GetLookupCollection(ByVal LDAPServerAndPort As String, _
+                                        ByVal ListName As String, _
+                                        ByVal ReturnDescriptionOnly As Boolean, _
+                                        ByVal DirectoryConfigurationRoot As String, _
+                                        ByVal DirectoryConnectionUsername As String, _
+                                        ByVal DirectoryConnectionPassword As String) As Collections.Specialized.OrderedDictionary
+        Dim SiteCollection = New Collections.Specialized.OrderedDictionary
+
+        FileLoggingObject.WriteEvent("Inside GetLookupCollection", LOGGING_LEVEL.DEBUGGING)
+
+        If Not LDAPServerAndPort.StartsWith("LDAP://") Then
+            LDAPServerAndPort = "LDAP://" & LDAPServerAndPort
+        End If
+
+        If Not LDAPServerAndPort.EndsWith("/") Then
+            LDAPServerAndPort &= "/"
+        End If
+
+        FileLoggingObject.WriteEvent("ListName=" & ListName, LOGGING_LEVEL.DEBUGGING)
+        FileLoggingObject.WriteEvent("LDAPServerAndPort=" & LDAPServerAndPort, LOGGING_LEVEL.DEBUGGING)
+
+        If CurrentDirectoryServer & "" <> "" Then
+            If DirectoryConfigurationRoot.StartsWith("LDAP://") Then DirectoryConfigurationRoot = Replace(DirectoryConfigurationRoot, "LDAP://", "")
+            If DirectoryConfigurationRoot.StartsWith(CurrentDirectoryServer) Then DirectoryConfigurationRoot = Replace(DirectoryConfigurationRoot, CurrentDirectoryServer, "")
+        End If
+
+        FileLoggingObject.WriteEvent("DirectoryConfigurationRoot=" & DirectoryConfigurationRoot, LOGGING_LEVEL.DEBUGGING)
+
+        ' Create full directory path
+        Dim FullRootPath As String = LDAPServerAndPort & "OU=" & ListName & "," & DirectoryConfigurationRoot
+
+        FileLoggingObject.WriteEvent("FullRootPath=" & FullRootPath, LOGGING_LEVEL.DEBUGGING)
+        FileLoggingObject.WriteEvent("DirectoryConnectionUsername="REDACTED"debug") Then
+            FileLoggingObject.WriteEvent("DirectoryConnectionPassword="REDACTED"Bind to the directory
+            Dim de As DirectoryEntry = New DirectoryEntry(FullRootPath, DirectoryConnectionUsername, DirectoryConnectionPassword, AuthenticationTypes.ServerBind)
+
+            'Create search object
+            Dim Search As DirectorySearcher = New DirectorySearcher(de)
+
+            'Create search criteria
+            Search.Filter = "(objectClass=User)"
+            Search.SearchScope = SearchScope.OneLevel
+            Search.PageSize = 200000
+            Search.PropertiesToLoad.Add("description")
+            Search.PropertiesToLoad.Add("cn")
+            Search.PropertiesToLoad.Add("wbemPath")
+
+            'Search the directory and return paths of matching users
+            Dim Results As SearchResultCollection = Search.FindAll()
+            Dim Description As String = Constants.DEFAULTSTRINGVALUE
+            Dim cn As String
+
+            Dim ObjectCount As Integer = 1
+
+            For Each Result As SearchResult In Results
+                Try
+                    Description = Result.Properties("description")(0).ToString
+                Catch
+                    Try
+                        Result.Properties("description").Item(0).ToString()
+                    Catch ex As Exception
+                        Description = Constants.DEFAULTSTRINGVALUE
+                    End Try
+                End Try
+                FileLoggingObject.WriteEvent("Lookup has retrieved a description of " & Description, LOGGING_LEVEL.DEBUGGING)
+
+                cn = Result.Properties("cn")(0).ToString
+                FileLoggingObject.WriteEvent("Lookup has retrieved a cn of " & cn, LOGGING_LEVEL.DEBUGGING)
+                If ReturnDescriptionOnly Then
+                    SiteCollection.Add(cn, Description)
+                Else
+                    Dim wbemPath As String = ""
+                    For Each Value As String In Result.Properties("wbemPath")
+                        wbemPath &= Value & "|"
+                    Next
+                    FileLoggingObject.WriteEvent("Lookup has retrieved a wbemPath of " & wbemPath, LOGGING_LEVEL.DEBUGGING)
+                    If wbemPath.EndsWith("|") Then wbemPath = wbemPath.Substring(0, wbemPath.Length - 1)
+                    SiteCollection.Add(cn, Description & "|" & wbemPath)
+                End If
+                ObjectCount += 1
+            Next
+
+            FileLoggingObject.WriteEvent("ObjectCount = " & ObjectCount - 1, LOGGING_LEVEL.DEBUGGING)
+
+            de.Close()
+            de = Nothing
+        Catch ex As Exception
+            FileLoggingObject.WriteEvent("Error binding to the lookup list!", LOGGING_LEVEL.ERRORS)
+            FileLoggingObject.WriteEvent("Error message: " & ex.Message, LOGGING_LEVEL.ERRORS)
+        End Try
+
+        Return SiteCollection
+
+    End Function
+
+    Public Function GetLookupValue(ByVal Key As String, ByVal ListName As String) As String
+        Dim ReturnValue As String = ""
+        Dim ValueCollection As Collections.Specialized.OrderedDictionary = GetLookupCollection(CurrentDirectoryServer, ListName, True, TargetDirectoryConfigurationRootDN, TargetDirectoryConnectionUsername, TargetDirectoryConnectionPassword)
+
+        ReturnValue = CollectionValue(Key, ValueCollection)
+
+        Return ReturnValue
+    End Function
+
+    Public Function RemoveServerFromDN(ByVal DNPath As String) As String
+        Dim ResultString As String = DNPath
+
+        If DNPath.ToUpper.StartsWith("LDAP://") Then
+            ResultString = DNPath.Substring(7)
+            ResultString = ResultString.Substring(ResultString.IndexOf("/") + 1)
+        End If
+
+        Return ResultString
+    End Function
+
+    Public Function DirectorySafeCharacters(ByVal InputString As String) As String
+        Dim OutputString As String = InputString
+
+        OutputString = OutputString.Replace("\", ".")
+        OutputString = OutputString.Replace(",", ".")
+        OutputString = OutputString.Replace("'", ".")
+        OutputString = OutputString.Replace("+", ".")
+        OutputString = OutputString.Replace(Chr(34), ".")
+        OutputString = OutputString.Replace("/", ".")
+        OutputString = OutputString.Replace("<", ".")
+        OutputString = OutputString.Replace(">", ".")
+        OutputString = OutputString.Replace("(", ".")
+        OutputString = OutputString.Replace(")", ".")
+        OutputString = OutputString.Replace("=", ".")
+        OutputString = OutputString.Replace(";", ".")
+        OutputString = OutputString.Replace("#", ".")
+        OutputString = OutputString.Replace("*", ".")
+
+        Return OutputString
+    End Function
+
+#End Region
+
+#Region " Config File "
+
+    Public Sub LoadConfigSection(ByVal SectionName As String, Optional ByVal NameFilter As String = "*")
+        Dim FileOpenResult As ERRORTYPE
+        Dim ConfigNode As XPathNavigator = Nothing
+        Dim SettingComplete As Boolean = False
+        Dim MoveResult As Boolean = False
+
+        OpenExternalConfigurationFile(ConfigNode)
+
+        FileOpenResult = LastStatus.CADS_ERRORCODE
+
+        If FileOpenResult = SUCCESS Then
+
+            ' First clear the existing contents
+            ConfigContents.Clear()
+
+            If ConfigNode.HasChildren Then
+                ConfigNode.MoveToFirstChild()
+                Do
+                    If ConfigNode.Name Like SectionName Then
+                        MoveResult = ConfigNode.MoveToFirstChild()
+                        If MoveResult Then
+                            Do
+                                If ConfigNode.Name Like (NameFilter) Then
+                                    ConfigContents.Add(ConfigNode.Name, ConfigNode.Value)
+                                End If
+                            Loop Until ConfigNode.MoveToNext = False
+                            SettingComplete = True
+                        Else
+                            ' No children
+                            SettingComplete = True
+                        End If
+                    End If
+                Loop Until (ConfigNode.MoveToNext = False Or SettingComplete = True)
+            End If
+        Else
+            ' LastStatus now contains the necessary information for us to determine the cause of the problem.
+        End If
+
+    End Sub
+
+    ''' <summary>
+    ''' Adds the given section
+    ''' </summary>
+    ''' <param name="SectionName">The section to add</param>
+    ''' <remarks>V1.0  D. Robinson</remarks>
+    Public Sub AddConfigSection(ByVal SectionName As String)
+        Dim SettingComplete As Boolean = False
+
+        Try
+            Dim ConfigNode As XPathNavigator = Nothing
+            Dim FileOpenResult As Int32
+
+            OpenExternalConfigurationFile(ConfigNode)
+
+            FileOpenResult = LastStatus.CADS_ERRORCODE
+
+            If FileOpenResult = SUCCESS Then
+                ConfigNode.AppendChildElement("", SectionName, "", "")
+                m_ConfigDocument.Save(m_ConfigFilenameAndPath)
+                SettingComplete = True
+
+                ConfigNode = Nothing
+                LastStatus.Clear()
+                LastStatus.CADS_ERRORCODE = SUCCESS
+            Else
+                LastStatus.Clear()
+                LastStatus.CADS_ERRORCODE = FileOpenResult
+            End If
+
+        Catch ex As Exception
+            LastStatus.Clear()
+            LastStatus.CADS_ERRORCODE = ErrorResult(ERRORTYPE.CONFIGURATION, ERROR_CONFIGURATION.SETTING_CREATE_ERROR)
+            LastStatus.LastException = ex
+        End Try
+
+    End Sub
+
+    ''' <summary>
+    ''' Adds the given setting
+    ''' </summary>
+    ''' <param name="SectionName">The setting to add</param>
+    ''' <param name="SettingName">The setting to add</param>
+    ''' <param name="SettingValue">The default value to write</param>
+    ''' <remarks>V1.0  D. Robinson</remarks>
+    Public Sub AddConfigSetting(ByVal SectionName As String, ByVal SettingName As String, ByVal SettingValue As String)
+        Dim SettingComplete As Boolean = False
+
+        Try
+            Dim ConfigNode As XPathNavigator = Nothing
+            Dim FileOpenResult As Int32
+
+            OpenExternalConfigurationFile(ConfigNode)
+
+            FileOpenResult = LastStatus.CADS_ERRORCODE
+
+            If FileOpenResult = SUCCESS Then
+                ConfigNode.MoveToFirstChild()
+                Do
+                    If ConfigNode.Name Like SectionName Then
+                        'ConfigNode.MoveToFirstChild()
+                        ConfigNode.AppendChildElement("", SettingName, Nothing, SettingValue)
+                        m_ConfigDocument.Save(m_ConfigFilenameAndPath)
+                        SettingComplete = True
+                    End If
+                Loop Until (ConfigNode.MoveToNext = False Or SettingComplete = True)
+
+
+                ConfigNode = Nothing
+                LastStatus.Clear()
+                LastStatus.CADS_ERRORCODE = SUCCESS
+            Else
+                LastStatus.Clear()
+                LastStatus.CADS_ERRORCODE = FileOpenResult
+            End If
+
+        Catch ex As Exception
+            LastStatus.Clear()
+            LastStatus.CADS_ERRORCODE = ErrorResult(ERRORTYPE.CONFIGURATION, ERROR_CONFIGURATION.SETTING_CREATE_ERROR)
+            LastStatus.LastException = ex
+        End Try
+
+    End Sub
+
+    ''' <summary>
+    ''' Adds the given attribute to a setting
+    ''' </summary>
+    ''' <param name="SectionName">The section to add to</param>
+    ''' <param name="SettingName">The setting to add</param>
+    ''' <param name="AttributeName"></param>
+    ''' <param name="AttributeValue"></param>
+    ''' <remarks>V1.0  D. Robinson</remarks>
+    Public Sub AddConfigSettingAttribute(ByVal SectionName As String, ByVal SettingName As String, ByVal AttributeName As String, ByVal AttributeValue As String)
+        Dim SettingComplete As Boolean = False
+
+        Try
+            Dim ConfigNode As XPathNavigator = Nothing
+            Dim FileOpenResult As Int32
+            Dim ResultOfMove As Boolean
+
+            OpenExternalConfigurationFile(ConfigNode)
+
+            FileOpenResult = LastStatus.CADS_ERRORCODE
+
+            If FileOpenResult = SUCCESS Then
+                ResultOfMove = ConfigNode.MoveToChild(SectionName, "")
+                If ResultOfMove = True Then
+                    ResultOfMove = ConfigNode.MoveToChild(SettingName, "")
+                    If ResultOfMove = True Then
+                        ConfigNode.CreateAttribute("", AttributeName, Nothing, AttributeValue)
+                        m_ConfigDocument.Save(m_ConfigFilenameAndPath)
+                        SettingComplete = True
+                    Else
+                        ' Setting not found
+                        LastStatus.CADS_ERRORCODE = ErrorResult(ERRORTYPE.CONFIGURATION, SETTING_NOT_FOUND)
+                    End If
+                Else
+                    ' Section not found
+                    LastStatus.CADS_ERRORCODE = ErrorResult(ERRORTYPE.CONFIGURATION, SECTION_NOT_FOUND)
+                End If
+
+                ConfigNode = Nothing
+                LastStatus.Clear()
+                LastStatus.CADS_ERRORCODE = SUCCESS
+            Else
+                LastStatus.Clear()
+                LastStatus.CADS_ERRORCODE = FileOpenResult
+            End If
+
+        Catch ex As Exception
+            LastStatus.Clear()
+            LastStatus.CADS_ERRORCODE = ErrorResult(ERRORTYPE.CONFIGURATION, ERROR_CONFIGURATION.ATTRIBUTE_WRITE_ERROR)
+            LastStatus.LastException = ex
+        End Try
+
+    End Sub
+
+    ''' <summary>
+    ''' Adds the given setting and attribute
+    ''' </summary>
+    ''' <param name="SectionName">The section to add to</param>
+    ''' <param name="SettingName">The setting to add</param>
+    ''' <param name="SettingValue">The default value to write</param>
+    ''' <param name="AttributeName"></param>
+    ''' <param name="AttributeValue"></param>
+    ''' <remarks>V1.0  D. Robinson</remarks>
+    Public Sub AddConfigSettingAndAttribute(ByVal SectionName As String, ByVal SettingName As String, ByVal SettingValue As String, ByVal AttributeName As String, ByVal AttributeValue As String)
+        Dim SettingComplete As Boolean = False
+
+        Try
+            Dim ConfigNode As XPathNavigator = Nothing
+            Dim FileOpenResult As Int32
+
+            OpenExternalConfigurationFile(ConfigNode)
+
+            FileOpenResult = LastStatus.CADS_ERRORCODE
+
+            If FileOpenResult = SUCCESS Then
+                ConfigNode.MoveToFirstChild()
+                Do
+                    If ConfigNode.Name Like SectionName Then
+                        'ConfigNode.MoveToFirstChild()
+                        ConfigNode.AppendChildElement("", SettingName, Nothing, SettingValue)
+                        ConfigNode.MoveToChild(SettingName, "")
+                        ConfigNode.CreateAttribute("", AttributeName, Nothing, AttributeValue)
+                        m_ConfigDocument.Save(m_ConfigFilenameAndPath)
+                        SettingComplete = True
+                    End If
+                Loop Until (ConfigNode.MoveToNext = False Or SettingComplete = True)
+
+                ConfigNode = Nothing
+                LastStatus.Clear()
+                LastStatus.CADS_ERRORCODE = SUCCESS
+            Else
+                LastStatus.Clear()
+                LastStatus.CADS_ERRORCODE = FileOpenResult
+            End If
+
+        Catch ex As Exception
+            LastStatus.Clear()
+            LastStatus.CADS_ERRORCODE = ErrorResult(ERRORTYPE.CONFIGURATION, ERROR_CONFIGURATION.SETTING_CREATE_ERROR)
+            LastStatus.LastException = ex
+        End Try
+
+    End Sub
+
+    ''' <summary>
+    ''' Reads the given String value
+    ''' </summary>
+    ''' <param name="SettingName">The Setting name</param>
+    ''' <param name="DefaultValue">The default value to use</param>
+    ''' <returns>The value</returns>
+    ''' <remarks>V1.0  D. Robinson</remarks>
+    Public Function LoadConfigSetting(ByVal SectionName As String, ByVal SettingName As String, Optional ByVal DefaultValue As String = DEFAULTSTRINGVALUE) As String
+        Dim ReturnValue As String = Constants.DEFAULTSTRINGVALUE
+
+        Try
+            Dim ConfigNode As XPathNavigator = Nothing
+            Dim FileOpenResult As Int32
+            Dim StatusOfLoad As Int32 = 0
+
+            OpenExternalConfigurationFile(ConfigNode)
+
+            FileOpenResult = LastStatus.CADS_ERRORCODE
+
+            If FileOpenResult = SUCCESS Then
+                Dim SettingValue As String = Constants.DEFAULTSTRINGVALUE
+                SettingValue = LoadConfigValue(ConfigNode, SectionName, SettingName)
+                StatusOfLoad = LastStatus.CADS_ERRORCODE
+
+                If StatusOfLoad = SUCCESS Then
+                    ConfigNode = Nothing
+
+                    ReturnValue = SettingValue
+                    LastStatus.Clear()
+                    LastStatus.CADS_ERRORCODE = SUCCESS
+                    Return ReturnValue
+                Else
+                    ReturnValue = Constants.DEFAULTSTRINGVALUE
+                    LastStatus.CADS_ERRORCODE = StatusOfLoad
+                    Return ReturnValue
+                End If
+
+            Else
+                LastStatus.CADS_ERRORCODE = FileOpenResult
+                Return Constants.DEFAULTSTRINGVALUE ' Error opening External Configuration file
+            End If
+        Catch ex As Exception
+            LastStatus.LastException = ex
+            LastStatus.CADS_ERRORCODE = ErrorResult(ERRORTYPE.CONFIGURATION, STRING_READ_ERROR)     ' Error Reading Configuration information of type string
+            Return Constants.DEFAULTSTRINGVALUE
+        End Try
+
+    End Function
+
+    Public Function LoadConfigSettingAttribute(ByVal SectionName As String, ByVal SettingName As String, ByVal AttributeName As String, Optional ByVal DefaultValue As String = DEFAULTSTRINGVALUE) As String
+        Dim ReturnValue As String = Constants.DEFAULTSTRINGVALUE
+
+        Try
+            Dim ConfigNode As XPathNavigator = Nothing
+            Dim FileOpenResult As Int32
+            Dim StatusOfLoad As Int32 = 0
+
+            OpenExternalConfigurationFile(ConfigNode)
+
+            FileOpenResult = LastStatus.CADS_ERRORCODE
+
+            If FileOpenResult = SUCCESS Then
+                'Dim SettingValue As String = Constants.DEFAULTSTRINGVALUE
+                Dim AttributeValue As String = Constants.DEFAULTSTRINGVALUE
+
+                'SettingValue = LoadConfigValue(ConfigNode, SectionName, SettingName)
+                AttributeValue = LoadConfigAttribute(ConfigNode, SectionName, SettingName, AttributeName)
+                StatusOfLoad = LastStatus.CADS_ERRORCODE
+
+                If StatusOfLoad = SUCCESS Then
+                    ConfigNode = Nothing
+
+                    ReturnValue = AttributeValue
+                    LastStatus.Clear()
+                    LastStatus.CADS_ERRORCODE = SUCCESS
+                    Return ReturnValue
+                Else
+                    ReturnValue = Constants.DEFAULTSTRINGVALUE
+                    LastStatus.CADS_ERRORCODE = StatusOfLoad
+                    Return ReturnValue
+                End If
+
+            Else
+                LastStatus.CADS_ERRORCODE = FileOpenResult
+                Return Constants.DEFAULTSTRINGVALUE ' Error opening External Configuration file
+            End If
+        Catch ex As Exception
+            LastStatus.LastException = ex
+            LastStatus.CADS_ERRORCODE = ErrorResult(ERRORTYPE.CONFIGURATION, STRING_READ_ERROR)     ' Error Reading Configuration information of type string
+            Return ""
+        End Try
+    End Function
+
+    Public Sub LoadConfigSettingAttributes(ByVal SectionName As String, ByVal SettingName As String, Optional ByVal DefaultValue As String = DEFAULTSTRINGVALUE, Optional ByVal NameFilter As String = "*")
+        Dim FileOpenResult As ERRORTYPE
+        Dim ConfigNode As XPathNavigator = Nothing
+        Dim SettingComplete As Boolean = False
+
+        OpenExternalConfigurationFile(ConfigNode)
+
+        FileOpenResult = LastStatus.CADS_ERRORCODE
+
+        If FileOpenResult = SUCCESS Then
+
+            ' First clear the existing contents
+            ConfigContents.Clear()
+
+            If ConfigNode.HasChildren Then
+                ConfigNode.MoveToFirstChild()
+                Do
+                    If ConfigNode.Name Like SectionName Then
+                        ConfigNode.MoveToFirstChild()
+                        Do
+                            If ConfigNode.Name Like (NameFilter) Then
+                                Dim AttributeValue As String = Constants.DEFAULTSTRINGVALUE
+                                Dim MoveResult As Boolean = False
+
+                                MoveResult = ConfigNode.MoveToFirstAttribute()
+                                Do
+                                    AttributeValue = ConfigNode.Value
+                                    ConfigContents.Add(ConfigNode.Name, AttributeValue)
+                                    MoveResult = ConfigNode.MoveToNextAttribute
+                                Loop Until MoveResult = False
+                            End If
+                        Loop Until ConfigNode.MoveToNext = False
+                        SettingComplete = True
+                    End If
+                Loop Until (ConfigNode.MoveToNext = False Or SettingComplete = True)
+            End If
+        Else
+            ' LastStatus now contains the necessary information for us to determine the cause of the problem.
+        End If
+    End Sub
+
+    Public Function GetSiteServer(ByVal ADSitename As String, ByVal Level As SERVER_TYPE, ByVal Servers As Collections.Specialized.OrderedDictionary) As String
+        Dim PrimaryServer As String = ""
+        Dim SecondaryServer As String = ""
+        Dim TertiaryServer As String = ""
+        Dim Keys As ICollection = Servers.Keys
+        Dim Values As ICollection = Servers.Values
+
+        For i As Int16 = 0 To Keys.Count - 1
+            If Keys(i).ToString = "PrimaryServer_" & ADSitename Then PrimaryServer = Values(i).ToString
+            If Keys(i).ToString = "SecondaryServer_" & ADSitename Then SecondaryServer = Values(i).ToString
+            If Keys(i).ToString = "TertiaryServer_" & ADSitename Then TertiaryServer = Values(i).ToString
+        Next
+
+        Select Case Level
+            Case SERVER_TYPE.Primary
+                Return PrimaryServer
+            Case SERVER_TYPE.Secondary
+                Return SecondaryServer
+            Case SERVER_TYPE.Tertiary
+                Return TertiaryServer
+            Case Else
+                Return Constants.DEFAULTSTRINGVALUE
+        End Select
+
+    End Function
+
+    Public Function CollectionValue(ByVal SettingName As String, ByVal SettingsCollection As OrderedDictionary) As String
+        Dim Keys As ICollection = SettingsCollection.Keys
+        Dim Values As ICollection = SettingsCollection.Values
+
+        '#If DEBUG Then
+        '        Debug.Print("Retrieving Value of " & SettingName & " from Collection")
+        '#End If
+
+        For i As Int16 = 0 To Keys.Count - 1
+            '#If DEBUG Then
+            '            Debug.Print("..." & Keys(i).ToString & " = " & Values(i).ToString)
+            '#End If
+            If Keys(i).ToString = SettingName Then Return Values(i).ToString
+        Next
+
+        Return Constants.DEFAULTSTRINGVALUE
+    End Function
+
+    '''' <summary>
+    '''' Writes the given String value
+    '''' </summary>
+    '''' <param name="SettingName">The Setting name</param>
+    '''' <remarks>V1.0  D. Robinson</remarks>
+    Public Sub SaveConfigSetting(ByVal SectionName As String, ByVal SettingName As String, ByVal Value As String)
+        Try
+            Dim ConfigNode As XPathNavigator = Nothing
+            Dim FileOpenResult As Int32
+            Dim StatusOfSave As Int32 = 0
+
+            OpenExternalConfigurationFile(ConfigNode)
+            FileOpenResult = LastStatus.CADS_ERRORCODE
+
+            If FileOpenResult = SUCCESS Then
+                SaveConfigValue(ConfigNode, SectionName, SettingName, Value)
+                StatusOfSave = LastStatus.CADS_ERRORCODE
+
+                If StatusOfSave = SUCCESS Then
+                    ConfigNode = Nothing
+                    LastStatus.CADS_ERRORCODE = SUCCESS
+                Else
+                    LastStatus.CADS_ERRORCODE = StatusOfSave
+                End If
+            Else
+                LastStatus.CADS_ERRORCODE = FileOpenResult ' Error opening External Configuration file
+            End If
+        Catch ex As Exception
+            LastStatus.LastException = ex
+            LastStatus.CADS_ERRORCODE = ErrorResult(ERRORTYPE.CONFIGURATION, STRING_WRITE_ERROR)     ' Error Writing Configuration information of type string
+        End Try
+
+    End Sub
+
+    ''' <summary>
+    ''' Writes the given String value
+    ''' </summary>
+    ''' <param name="SettingName">The Setting name</param>
+    ''' <remarks>V1.0  D. Robinson</remarks>
+    Public Sub SaveConfigSettingAttribute(ByVal SectionName As String, ByVal SettingName As String, ByVal AttributeName As String, ByVal AttributeValue As String)
+        Try
+            Dim ConfigNode As XPathNavigator = Nothing
+            Dim FileOpenResult As Int32
+            Dim StatusOfSave As Int32 = 0
+
+            OpenExternalConfigurationFile(ConfigNode)
+            FileOpenResult = LastStatus.CADS_ERRORCODE
+
+            If FileOpenResult = SUCCESS Then
+                SaveConfigAttribute(ConfigNode, SectionName, SettingName, AttributeName, AttributeValue)
+                StatusOfSave = LastStatus.CADS_ERRORCODE
+
+                If StatusOfSave = SUCCESS Then
+                    ConfigNode = Nothing
+                    LastStatus.CADS_ERRORCODE = SUCCESS
+                Else
+                    LastStatus.CADS_ERRORCODE = StatusOfSave
+                End If
+            Else
+                LastStatus.CADS_ERRORCODE = FileOpenResult ' Error opening External Configuration file
+            End If
+        Catch ex As Exception
+            LastStatus.LastException = ex
+            LastStatus.CADS_ERRORCODE = ErrorResult(ERRORTYPE.CONFIGURATION, STRING_WRITE_ERROR)     ' Error Writing Configuration information of type string
+        End Try
+
+    End Sub
+
+    ''' <summary>
+    ''' Deletes the given setting
+    ''' </summary>
+    ''' <param name="SettingName">The Setting name</param>
+    ''' <remarks>V1.0  D. Robinson</remarks>
+    Public Sub DeleteConfigSetting(ByVal SectionName As String, ByVal SettingName As String)
+        Try
+            Dim ConfigNode As XPathNavigator = Nothing
+            Dim FileOpenResult As Int32
+            Dim ResultOfMove As Boolean
+
+            OpenExternalConfigurationFile(ConfigNode)
+
+            FileOpenResult = LastStatus.CADS_ERRORCODE
+
+            If FileOpenResult = SUCCESS Then
+                ResultOfMove = ConfigNode.MoveToChild(SectionName, "")
+                If ResultOfMove = True Then
+                    ResultOfMove = ConfigNode.MoveToChild(SettingName, "")
+                    If ResultOfMove = True Then
+                        ConfigNode.DeleteSelf()
+                        m_ConfigDocument.Save(m_ConfigFilenameAndPath)
+                        LastStatus.CADS_ERRORCODE = SUCCESS
+                    Else
+                        ' Setting not found
+                    End If
+                Else
+                    ' Section not found
+                    LastStatus.CADS_ERRORCODE = ErrorResult(ERRORTYPE.CONFIGURATION, SETTING_DELETE_ERROR)
+                End If
+            Else
+                LastStatus.CADS_ERRORCODE = FileOpenResult ' Error opening External Configuration file
+            End If
+        Catch ex As Exception
+            LastStatus.LastException = ex
+            LastStatus.CADS_ERRORCODE = ErrorResult(ERRORTYPE.CONFIGURATION, SETTING_DELETE_ERROR)     ' Error Reading Configuration information of type string
+        End Try
+
+    End Sub
+
+    ''' <summary>
+    ''' Deletes the given setting
+    ''' </summary>
+    ''' <param name="SettingName">The Setting name</param>
+    ''' <remarks>V1.0  D. Robinson</remarks>
+    Public Sub DeleteConfigSettingAttribute(ByVal SectionName As String, ByVal SettingName As String, ByVal AttributeName As String)
+        Try
+            Dim ConfigNode As XPathNavigator = Nothing
+            Dim FileOpenResult As Int32
+            Dim ResultOfMove As Boolean
+
+            OpenExternalConfigurationFile(ConfigNode)
+
+            FileOpenResult = LastStatus.CADS_ERRORCODE
+
+            If FileOpenResult = SUCCESS Then
+                ResultOfMove = ConfigNode.MoveToChild(SectionName, "")
+                If ResultOfMove = True Then
+                    ResultOfMove = ConfigNode.MoveToChild(SettingName, "")
+                    If ResultOfMove = True Then
+                        ResultOfMove = ConfigNode.MoveToAttribute(AttributeName, "")
+                        If ResultOfMove = True Then
+                            ConfigNode.DeleteSelf()
+                            m_ConfigDocument.Save(m_ConfigFilenameAndPath)
+                            LastStatus.CADS_ERRORCODE = SUCCESS
+                        Else
+                            LastStatus.CADS_ERRORCODE = ErrorResult(ERRORTYPE.CONFIGURATION, ATTRIBUTE_DELETE_ERROR)
+                        End If
+                    Else
+                        ' Setting not found
+                        LastStatus.CADS_ERRORCODE = ErrorResult(ERRORTYPE.CONFIGURATION, SETTING_NOT_FOUND)
+                    End If
+                Else
+                    ' Section not found
+                    LastStatus.CADS_ERRORCODE = ErrorResult(ERRORTYPE.CONFIGURATION, ATTRIBUTE_DELETE_ERROR)
+                End If
+            Else
+                LastStatus.CADS_ERRORCODE = FileOpenResult ' Error opening External Configuration file
+            End If
+        Catch ex As Exception
+            LastStatus.LastException = ex
+            LastStatus.CADS_ERRORCODE = ErrorResult(ERRORTYPE.CONFIGURATION, SETTING_DELETE_ERROR)     ' Error Reading Configuration information of type string
+        End Try
+
+    End Sub
+
+    ''' <summary>
+    ''' Opens the External Configuration file
+    ''' </summary>
+    ''' <param name="Navigator">XPathNavigator</param>
+    ''' <remarks>V1.0  D. Robinson</remarks>
+    Private Sub OpenExternalConfigurationFile(ByRef Navigator As XPathNavigator)
+        If m_ConfigFilenameAndPath.Length = 0 Then
+            LastStatus.Clear()
+            LastStatus.CADS_ERRORCODE = ErrorResult(ERRORTYPE.CONFIGURATION, SETTING_READ_ERROR)
+        End If
+        If IO.File.Exists(m_ConfigFilenameAndPath) Then
+            Try
+                m_ConfigDocument.Load(m_ConfigFilenameAndPath)
+
+                Dim Nav As XPathNavigator = m_ConfigDocument.CreateNavigator()
+                Dim ConfigNode As XPathNavigator = Nav.SelectSingleNode("/configuration")
+
+                Navigator = ConfigNode.Clone
+
+                ConfigNode = Nothing
+                Nav = Nothing
+
+                LastStatus.CADS_ERRORCODE = SUCCESS
+            Catch ex As DirectoryNotFoundException
+                LastStatus.LastException = ex
+                LastStatus.CADS_ERRORCODE = ErrorResult(ERRORTYPE.FILESYSTEM, DIRECTORY_NOT_FOUND) ' Directory not found Error opening External Configuration file
+            Catch ex As FileNotFoundException
+                LastStatus.LastException = ex
+                LastStatus.CADS_ERRORCODE = ErrorResult(ERRORTYPE.FILESYSTEM, FILE_NOT_FOUND) ' File not found Error opening External Configuration file
+            End Try
+        Else
+            LastStatus.CADS_ERRORCODE = ErrorResult(ERRORTYPE.FILESYSTEM, FILE_NOT_FOUND) ' File not found Error opening External Configuration file
+        End If
+    End Sub
+
+    ''' <summary>
+    ''' Reads the value from the configuration file
+    ''' </summary>
+    ''' <param name="Node">XPathNavigator</param>
+    ''' <param name="SectionName">The Section name</param>
+    ''' <param name="SettingName">The Setting name</param>
+    ''' <returns>The Value</returns>
+    ''' <remarks>V1.0  D. Robinson</remarks>
+    Private Function LoadConfigValue(ByVal Node As XPathNavigator, ByVal SectionName As String, ByVal SettingName As String) As String
+        Dim ResultOfMove As Boolean = False
+        Dim Result As String = ""
+        Dim ReadComplete As Boolean = False
+
+        If Node.HasChildren Then
+            Node.MoveToFirstChild()
+            Do
+                If Node.Name Like SectionName Then
+                    'Node.MoveToFirstChild()
+                    Do
+                        Node.SelectSingleNode(SettingName)
+                        ResultOfMove = Node.MoveToChild(SettingName, "")
+                        If ResultOfMove = True Then
+                            Result = Node.Value
+                            LastStatus.CADS_ERRORCODE = SUCCESS
+                            ReadComplete = True
+                        Else  ' Unsuccessful
+                            Result = Constants.DEFAULTSTRINGVALUE
+                            LastStatus.CADS_ERRORCODE = ErrorResult(ERRORTYPE.CONFIGURATION, SETTING_NOT_FOUND) ' Error Reading Configuration.  Setting not found
+                        End If
+                    Loop Until Node.MoveToNext = False Or ReadComplete = True
+                End If
+            Loop Until (Node.MoveToNext = False Or ReadComplete = True)
+        End If
+        Return Result
+    End Function
+
+    ''' <summary>
+    ''' Reads the attribute from the configuration file
+    ''' </summary>
+    ''' <param name="Node">XPathNavigator</param>
+    ''' <param name="SectionName">The Section name</param>
+    ''' <param name="SettingName">The Setting name</param>
+    ''' <param name="AttributeName">The attribute</param>
+    ''' <returns>The Attribute</returns>
+    ''' <remarks>V1.0  D. Robinson</remarks>
+    Private Function LoadConfigAttribute(ByVal Node As XPathNavigator, ByVal SectionName As String, ByVal SettingName As String, ByVal AttributeName As String) As String
+        Dim ResultOfMove As Boolean = False
+        Dim Result As String = ""
+        Dim ReadComplete As Boolean = False
+
+        If Node.HasChildren Then
+            Node.MoveToFirstChild()
+            Do
+                If Node.Name Like SectionName Then
+                    'Node.MoveToFirstChild()
+                    Do
+                        Node.SelectSingleNode(SettingName)
+                        ResultOfMove = Node.MoveToChild(SettingName, "")
+                        If ResultOfMove = True Then
+                            Result = Node.GetAttribute(AttributeName, "")
+                            'Result = Node.Value
+                            LastStatus.CADS_ERRORCODE = SUCCESS
+                            ReadComplete = True
+                        Else  ' Unsuccessful
+                            Result = Constants.DEFAULTSTRINGVALUE
+                            LastStatus.CADS_ERRORCODE = ErrorResult(ERRORTYPE.CONFIGURATION, SETTING_NOT_FOUND) ' Error Reading Configuration.  Setting not found
+                        End If
+                    Loop Until Node.MoveToNext = False Or ReadComplete = True
+                End If
+            Loop Until (Node.MoveToNext = False Or ReadComplete = True)
+        End If
+        Return Result
+    End Function
+
+    ''' <summary>
+    ''' Writes the value to the configuration file
+    ''' </summary>
+    ''' <param name="Node">XPathNavigator</param>
+    ''' <param name="SectionName">The Section name</param>
+    ''' <param name="SettingName">The Setting name</param>
+    ''' <param name="SettingValue">The value</param>
+    ''' <remarks>V1.0  D. Robinson</remarks>
+    Private Sub SaveConfigValue(ByVal Node As XPathNavigator, ByVal SectionName As String, ByVal SettingName As String, ByVal SettingValue As String)
+        Dim ResultOfMove As Boolean = False
+        Dim ReadComplete As Boolean = False
+
+        If Node.HasChildren Then
+            Node.MoveToFirstChild()
+            Do
+                If Node.Name Like SectionName Then
+                    'Node.MoveToFirstChild()
+                    Do
+
+                        Node.SelectSingleNode(SettingName)
+                        ResultOfMove = Node.MoveToChild(SettingName, "")
+                        If ResultOfMove = True Then
+                            ' Save the value to this node
+                            Try
+                                Node.SetValue(SettingValue)
+                                m_ConfigDocument.Save(m_ConfigFilenameAndPath)
+                                LastStatus.CADS_ERRORCODE = SUCCESS
+                            Catch ex As Exception
+                                LastStatus.CADS_ERRORCODE = ErrorResult(ERRORTYPE.CONFIGURATION, WRITE_NOT_SUPPORTED) ' Error Writing Configuration.  Writes not supported
+                            End Try
+                            ReadComplete = True
+                        Else  ' Unsuccessful
+                            Try
+                                Node.AppendChild(SettingName)
+                                Try
+                                    ResultOfMove = Node.MoveToChild(SettingName, "")
+                                    Node.SetValue(SettingValue)
+                                Catch ex As Exception
+                                    LastStatus.LastException = ex
+                                    LastStatus.CADS_ERRORCODE = ErrorResult(ERRORTYPE.CONFIGURATION, WRITE_NOT_PERFORMED) ' Error Writing Configuration.  Could not save new value
+                                End Try
+                            Catch ex As Exception
+                                LastStatus.LastException = ex
+                                LastStatus.CADS_ERRORCODE = ErrorResult(ERRORTYPE.CONFIGURATION, WRITE_ERROR) ' Error Writing Configuration.  Could not append setting
+                            End Try
+                            ReadComplete = True
+                        End If
+                    Loop Until Node.MoveToNext = False Or ReadComplete = True
+                End If
+            Loop Until (Node.MoveToNext = False Or ReadComplete = True)
+        End If
+    End Sub
+
+    ''' <summary>
+    ''' Writes the attribute to the configuration file
+    ''' </summary>
+    ''' <param name="Node">XPathNavigator</param>
+    ''' <param name="SectionName">The Section name</param>
+    ''' <param name="SettingName">The Setting name</param>
+    ''' <param name="AttributeName">The attribute</param>
+    ''' <param name="AttributeValue">The attribute value</param>
+    ''' <remarks>V1.0  D. Robinson</remarks>
+    Private Sub SaveConfigAttribute(ByVal Node As XPathNavigator, ByVal SectionName As String, ByVal SettingName As String, ByVal AttributeName As String, ByVal AttributeValue As String)
+        Dim ResultOfMove As Boolean = False
+        Dim ReadComplete As Boolean = False
+
+        If Node.HasChildren Then
+            Node.MoveToFirstChild()
+            Do
+                If Node.Name Like SectionName Then
+                    'Node.MoveToFirstChild()
+                    Do
+                        Node.SelectSingleNode(SettingName)
+                        ResultOfMove = Node.MoveToChild(SettingName, "")
+                        If ResultOfMove = True Then
+                            ' Save the value to this attribute
+                            Try
+                                Node.MoveToAttribute(AttributeName, "")
+
+                                Node.SetValue(AttributeValue)
+                                m_ConfigDocument.Save(m_ConfigFilenameAndPath)
+                                LastStatus.CADS_ERRORCODE = SUCCESS
+                            Catch ex As Exception
+                                LastStatus.CADS_ERRORCODE = ErrorResult(ERRORTYPE.CONFIGURATION, WRITE_NOT_SUPPORTED) ' Error Writing Configuration.  Writes not supported
+                            End Try
+                            ReadComplete = True
+                        Else  ' Unsuccessful
+                            LastStatus.CADS_ERRORCODE = ErrorResult(ERRORTYPE.CONFIGURATION, WRITE_NOT_PERFORMED) ' Error Writing Configuration.  Could not save new value
+                        End If
+                    Loop Until Node.MoveToNext = False Or ReadComplete = True
+                End If
+            Loop Until (Node.MoveToNext = False Or ReadComplete = True)
+        End If
+    End Sub
+
+    Public Function MySettings(ByVal Username As String) As System.Collections.Specialized.OrderedDictionary
+        Dim FinalSettings As New OrderedDictionary
+        Dim SystemSettings As New OrderedDictionary
+        Dim DirectorySettings As New OrderedDictionary
+        Dim SystemSecurityLevels As New OrderedDictionary
+        Dim ConsoleUserSettings As New OrderedDictionary
+        Dim Servers As New OrderedDictionary
+        Dim SecurityLevels As New OrderedDictionary
+        Dim MySecuritylevel As UInt64
+
+        Dim UserSettings As New OrderedDictionary
+        Dim LevelSettings As New OrderedDictionary
+        Dim ConsoleSearchFields As New OrderedDictionary
+        Dim DirectoryServer As New OrderedDictionary
+        Dim ConsoleDetailFields As New OrderedDictionary
+        Dim ConfigFilename As String = m_ConfigFilenameAndPath ' Save this because we have to switch between files
+        Dim NonStandardConfigFilename As String = ""
+        Dim UserConfigExists As Boolean = False
+        Dim UsernameToCheck As String = Replace(Username, "\", "_")
+
+        ' ------------------------------------------------------------------------------------------
+        ' Load all System settings
+        LoadConfigSection("SystemSettings") ' Should only contain TemporaryAccounts and EncryptionKey
+        CloneCollection(ConfigContents, SystemSettings)
+        ' ------------------------------------------------------------------------------------------
+        ' Load system Security Levels
+        LoadConfigSection("SystemSecurityLevels") ' Contains Security levels
+        CloneCollection(ConfigContents, SystemSecurityLevels)
+        ' ------------------------------------------------------------------------------------------
+        ' Load User Console settings
+        LoadConfigSection("ConsoleUserSettings") ' Contains System settings that are customisable, and are not in CADS.config
+        CloneCollection(ConfigContents, ConsoleUserSettings)
+        ' ------------------------------------------------------------------------------------------
+        ' Load the default Directory servers
+        LoadConfigSection("DirectoryServer") ' Contains basic config settings
+        CloneCollection(ConfigContents, DirectoryServer)
+        FileLoggingObject.WriteEvent("Default Server from config file is " & CollectionValue("Default", DirectoryServer), LOGGING_LEVEL.DEBUGGING)
+        ' ------------------------------------------------------------------------------------------
+        ' Determine what level names this user has
+        MySecuritylevel = GetUserAccessLevel(Username)
+
+        ' Switch to the User-specific config
+        NonStandardConfigFilename = m_AppDataPath & "\Users\" & UsernameToCheck & ".config"
+
+        FileLoggingObject.WriteEvent("MySettings: Reading data from Config File " & NonStandardConfigFilename, LOGGING_LEVEL.DEBUGGING)
+
+        If IO.File.Exists(NonStandardConfigFilename) Then
+            ConfigFilenameAndPath = NonStandardConfigFilename
+            ' Load User settings
+            LoadConfigSection("ConsoleUserSettings")
+            CloneCollection(ConfigContents, UserSettings)
+            ' If the user config exists, it will over-ride the level config
+            DirectorySettings.Clear()
+            ConsoleSearchFields.Clear()
+            ConsoleDetailFields.Clear()
+            LoadConfigSection("DirectorySettings")
+            CloneCollection(ConfigContents, DirectorySettings)
+
+            FileLoggingObject.WriteEvent("MySettings: determining Location", LOGGING_LEVEL.DEBUGGING)
+            ' Get Location to determine servers
+            UserDefaultLocation = CollectionValue("Location", DirectorySettings)
+            FileLoggingObject.WriteEvent("MySettings: UserDefaultLocation=" & UserDefaultLocation, LOGGING_LEVEL.DEBUGGING)
+            ' Now retrieve the list of servers for this location from ADAM
+            Dim ConfigurationServerName As String = ""
+            Try
+                Dim EncryptedEncryptionKey As String = CollectionValue("EncryptionKey", SystemSettings)
+                Dim DecryptedEncryptionKey As String = SimpleCrypt(EncryptedEncryptionKey)
+                Dim DirectoryUsername As String = CollectionValue("DirectoryUserUsername", DirectorySettings)
+                Dim EncryptedDirectoryPassword As String = CollectionValue("DirectoryUserPassword", DirectorySettings)
+                Dim DecryptedDirectoryPassword As String = XMLDecrypt(EncryptedDirectoryPassword, DecryptedEncryptionKey)
+                ConfigurationServerName = CollectionValue("Default", DirectoryServer)
+                Dim DirectoryConfigurationPath As String = CollectionValue("ConfigurationRoot", DirectoryServer)
+
+                FileLoggingObject.WriteEvent("*****************************", LOGGING_LEVEL.DEBUGGING)
+                FileLoggingObject.WriteEvent("DEBUGGING INFORMATION FOLLOWS", LOGGING_LEVEL.DEBUGGING)
+                FileLoggingObject.WriteEvent("DirectoryConfigurationPath :" & DirectoryConfigurationPath, LOGGING_LEVEL.DEBUGGING)
+                FileLoggingObject.WriteEvent("DirectoryUsername          :"REDACTED"DecryptedDirectoryPassword :"REDACTED"*****************************", LOGGING_LEVEL.DEBUGGING)
+
+                Servers = GetLookupCollection(ConfigurationServerName, "Locations", False, DirectoryConfigurationPath, DirectoryUsername, DecryptedDirectoryPassword)
+
+                ' Finally, get the actual server names
+                Dim TempDirectoryServers() As String
+                TempDirectoryServers = Split(CollectionValue(UserDefaultLocation, Servers), "|")
+                For i As Integer = 1 To TempDirectoryServers.Count - 1
+                    ReDim Preserve DirectoryServers(i - 1)
+                    DirectoryServers(i - 1) = TempDirectoryServers(i)
+                Next
+
+                If DirectoryServers.Length = 0 Then
+                    ReDim DirectoryServers(0)
+                    DirectoryServers(0) = ConfigurationServerName
+                    FileLoggingObject.WriteWarningEvent("Server could not be determined.  Using Configuration Server. (1)")
+                End If
+            Catch
+                Try
+                    DirectoryServers(0) = ConfigurationServerName
+                    FileLoggingObject.WriteWarningEvent("Server could not be determined.  Using Configuration Server. (2)")
+                Catch ex As Exception
+
+                End Try
+            End Try
+            LoadConfigSection("ConsoleSearchFields")
+            CloneCollection(ConfigContents, ConsoleSearchFields)
+            LoadConfigSection("ConsoleDetailFields")
+            CloneCollection(ConfigContents, ConsoleDetailFields)
+
+            UserConfigExists = True
+        End If
+
+        ' Combine all of these settings into one collection
+        ' SystemSettings
+        CloneCollection(SystemSettings, FinalSettings)
+        ' SystemSecurityLevels
+        CloneCollection(SystemSecurityLevels, FinalSettings)
+        ' DirectoryServers
+        CloneCollection(Servers, FinalSettings)
+        ' DirectorySettings
+        CloneCollection(DirectorySettings, FinalSettings)
+        ' ConsoleSearchFields
+        CloneCollection(ConsoleSearchFields, FinalSettings)
+        ' ConsoleDetailFields 
+        CloneCollection(ConsoleDetailFields, FinalSettings)
+        ' DirectoryServer
+        CloneCollection(DirectoryServer, FinalSettings)
+        'If UserConfigExists Then ' 
+        MergeCollections(UserSettings, LevelSettings, FinalSettings)
+        'End If
+
+        ' Finally, switch back to the standard config
+        m_ConfigFilenameAndPath = ConfigFilename
+
+        Return FinalSettings
+    End Function
+
+    Public Function MySection(ByVal Username As String, ByVal SectionName As String) As System.Collections.Specialized.OrderedDictionary
+        Dim FinalSettings As New OrderedDictionary
+        Dim SecurityLevels As New OrderedDictionary
+        Dim MySecuritylevel As UInt64
+
+        Dim UserSettings As New OrderedDictionary
+        Dim LevelSettings As New OrderedDictionary
+        Dim ConfigFilename As String = m_ConfigFilenameAndPath ' Save this because we have to switch between files
+        Dim NonStandardConfigFilename As String = ""
+        Dim UserConfigExists As Boolean = False
+        Dim UsernameToCheck As String = Replace(Username, "\", "_")
+
+        ' Determine what level names this user has
+        MySecuritylevel = GetUserAccessLevel(Username)
+
+        ' Switch to the User-specific config
+        NonStandardConfigFilename = m_AppDataPath & "\Users\" & UsernameToCheck & ".config"
+
+        If IO.File.Exists(NonStandardConfigFilename) Then
+            m_ConfigFilenameAndPath = NonStandardConfigFilename
+            ' Load User settings
+            LoadConfigSection(SectionName)
+            CloneCollection(ConfigContents, UserSettings)
+            UserConfigExists = True
+        End If
+
+        ' Now we have the following 2 collections that we have to choose each setting individually:
+        ' LevelSettings
+        ' UserSettings
+        ' This is because we can over-ride these settings individually
+
+        ' Combine these settings into one collection
+        If UserConfigExists Then ' 
+            MergeCollections(UserSettings, LevelSettings, FinalSettings)
+        End If
+
+        ' Finally, switch back to the standard config
+        m_ConfigFilenameAndPath = ConfigFilename
+
+        Return FinalSettings
+    End Function
+
+    Public Sub UpdateCADSConfigFile()
+        FileLoggingObject.WriteEvent("TODO:  Remove the call to UpdateCADSConfigFile from your code!!!!!", LOGGING_LEVEL.ERRORS)
+
+        'Try
+        '    ConfigFileLocation = My.Settings.ConfigFileLocation
+        '    FileLoggingObject.WriteEvent("Successfully loaded ConfigFileLocation as " & ConfigFileLocation, LOGGING_LEVEL.DEBUGGING)
+        'Catch
+        '    FileLoggingObject.WriteErrorEvent("Unable to load ConfigFileLocation.  Reverting to " & My.Application.Info.DirectoryPath)
+        '    ConfigFileLocation = My.Application.Info.DirectoryPath
+        'End Try
+
+        'If Not ConfigFileLocation.EndsWith("\") Then ConfigFileLocation = ConfigFileLocation & "\"
+
+        'Try
+        '    IO.File.Copy(ConfigFileLocation & "cads.config", My.Application.Info.DirectoryPath & "\cads.config", True)
+        '    FileLoggingObject.WriteEvent("Successfully copied cads.config to local machine", LOGGING_LEVEL.DEBUGGING)
+        'Catch ex As Exception
+        '    FileLoggingObject.WriteErrorEvent("Cannot copy cads.config to local machine")
+        '    Debug.Print("Cannot copy cads.config to local machine: " & ex.Message)
+        'End Try
+    End Sub
+
+    Private Sub UpdateUserConfigFile()
+        Dim ConfigFileSourceLocation As String = m_ConfigFileSourceLocation
+
+        FileLoggingObject.WriteEvent("Inside UpdateUserConfigFile", LOGGING_LEVEL.DEBUGGING)
+
+        FileLoggingObject.WriteEvent("Successfully read ConfigFileLocation as " & ConfigFileSourceLocation, LOGGING_LEVEL.DEBUGGING)
+
+        Try
+            If Not ConfigFileSourceLocation.EndsWith("\") Then ConfigFileSourceLocation = m_ConfigFileSourceLocation & "\"
+
+            Try
+                If Not IO.Directory.Exists(m_AppDataPath & "\users") Then
+                    IO.Directory.CreateDirectory(m_AppDataPath & "\users")
+                    FileLoggingObject.WriteEvent("Successfully created local path for User config files", LOGGING_LEVEL.DEBUGGING)
+                End If
+            Catch
+                FileLoggingObject.WriteErrorEvent("Cannot create Users folder on the local machine")
+            End Try
+
+            IO.File.Copy(m_ConfigFileSourceLocation & "\users\" & InteractiveUserUsername & ".config", m_AppDataPath & "\users\" & InteractiveUserUsername & ".config", True)
+            FileLoggingObject.WriteEvent("Successfully copied " & InteractiveUserUsername & ".config to local machine", LOGGING_LEVEL.DEBUGGING)
+        Catch ex As Exception
+            FileLoggingObject.WriteErrorEvent("Cannot copy " & InteractiveUserUsername & ".config to local machine")
+            FileLoggingObject.WriteErrorEvent("The error message was: " & ex.Message)
+            Debug.Print("UpdateUserConfigFile ERROR!!! " & ex.Message)
+        End Try
+    End Sub
+
+#End Region
+
+#Region " Security "
+
+    Public Function UserSecurityLevelToLevelNames(ByVal UserSecurityLevel As UInt64) As Collections.Specialized.OrderedDictionary
+        Dim Levels As New Collections.Specialized.OrderedDictionary
+        Dim LevelName As String = ""
+
+        Debug.Print("User has a security value of " & UserSecurityLevel)
+
+        'For i As Integer = 1 To 64
+        ' Dim SecurityLevel As UInt64 = 2 ^ (i - 1)
+        '
+        'If SecurityLevel And UserSecurityLevel Then
+        'LevelName = UserSecurityLevelName(i)
+        'Levels.Add(LevelName, i)
+        'Debug.Print("Added Security Level to list (" & LevelName & ")")
+        'End If
+        'Next
+
+        Return Levels
+
+    End Function
+
+    Private Function UserSecurityLevelName(ByVal UserSecurityLevel As Int16) As String
+        Dim LevelName As String = DEFAULTSTRINGVALUE
+        Dim Index As Int16 = 0
+        ' UserSecurityLevel is a number between 1 and 64
+
+
+        ' TODO:  FIX!!
+        'HostInstance.LoadConfigSection("SystemSecurityLevels")
+
+        For Each SecurityLevelValue In ConfigContents.Values ' GetValueList
+            Dim SecurityLevel As String = SecurityLevelValue.ToString.Substring(0, SecurityLevelValue.ToString.IndexOf("|"))
+            If Convert.ToInt16(SecurityLevel) = UserSecurityLevel Then ' ConfigContents(Index)
+                Return ConfigContents.Keys(Index).ToString
+            End If
+            Index += 1
+        Next
+
+        Return LevelName
+    End Function
+
+    Public Function DoLogon(Optional ByVal ProvidedPasswordIsEncrypted = False) As String
+        Return DoLogon("", "", ProvidedPasswordIsEncrypted)
+    End Function
+
+    Public Function DoLogon(ByVal LogonUsername As String, ByVal LogonPassword As String, ByVal ProvidedPasswordIsEncrypted As Boolean) As String
+        Dim LoginForm As New Utility.frmLogin
+        Dim PerformAutoLogon As Boolean = False
+        Dim CADSVersion As String = "4.0"
+        Dim LoginResult As System.Windows.Forms.DialogResult
+        Dim UserSecurityLevel As String = Constants.DEFAULTSTRINGVALUE
+        Dim EncryptedPassword As String = Constants.DEFAULTSTRINGVALUE
+        Dim LogonAttemptCount As Integer = 0
+
+        ' If we could not find cads.config during startup, then we cannot continue...
+        If m_CADSConfigFileNotFound = True Then Return UserSecurityLevel
+
+        'StartClient()
+
+        Dim EncryptedEncryptionKey As String = LoadConfigSetting("SystemSettings", "EncryptionKey")
+        Dim gDecryptedEncryptionKey As String = SimpleCrypt(EncryptedEncryptionKey)
+
+        Do
+            If LogonUsername.Length = 0 Then
+                LoginForm.AllowWindowsLogon = False
+
+                LoginResult = LoginForm.ShowDialog
+
+                If LoginResult = Windows.Forms.DialogResult.Cancel Then
+                    Return Constants.DEFAULTSTRINGVALUE
+                End If
+
+                LogonUsername = LoginForm.InteractiveUserUsername.Trim
+                LogonPassword =REDACTED
+
+                InteractiveUserUsername = LogonUsername
+                InteractiveUserPassword =REDACTED
+            Else
+                InteractiveUserUsername = LogonUsername
+                InteractiveUserPassword =REDACTED
+            End If
+
+            Try
+                If Not ProvidedPasswordIsEncrypted Then
+                    EncryptedPassword =REDACTED gDecryptedEncryptionKey)
+                Else
+                    EncryptedPassword =REDACTED
+                End If
+
+                Dim StoredPassword As String = LoadConfigSettingAttribute("SystemSecurityLevels", InteractiveUserUsername, "Password")
+
+                If StoredPassword =REDACTED Then
+                    ' Incorrect Username
+                    'Return UserSecurityLevel
+                    FileLoggingObject.WriteWarningEvent("Incorrect username")
+                    LogonUsername = ""
+                    LogonPassword = ""
+                    InteractiveUserUsername = LogonUsername
+                    InteractiveUserPassword =REDACTED
+                    LoginForm.lblIncorrect.Visible = True
+                Else
+                    If EncryptedPassword =REDACTED Then
+                        UserSecurityLevel = GetUserAccessLevel(LogonUsername)
+
+                        If Not DoNotDownloadUserConfiguration Then
+                            UpdateUserConfigFile()
+                        End If
+                    Else
+                        ' Incorrect password
+                        FileLoggingObject.WriteWarningEvent("Incorrect password")
+                        LogonUsername = ""
+                        LogonPassword = ""
+                        InteractiveUserUsername = LogonUsername
+                        InteractiveUserPassword =REDACTED
+                        LoginForm.lblIncorrect.Visible = True
+                        'LogonAttemptCount += 1
+                    End If
+                End If
+            Catch ex1 As System.ServiceModel.EndpointNotFoundException
+                FileLoggingObject.WriteErrorEvent("The Configuration server could not be contacted.  This is a critical error.  " & My.Application.Info.AssemblyName & " cannot continue." & vbCrLf & vbCrLf & "The actual error returned was:" & vbCrLf & ex1.Message)
+                Return Constants.DEFAULTSTRINGVALUE
+            Catch ex2 As Exception
+                FileLoggingObject.WriteErrorEvent("An unexpected error has occured.  This is a critical error.  " & My.Application.Info.AssemblyName & " cannot continue." & vbCrLf & vbCrLf & "The error message returned was:" & vbCrLf & ex2.Message)
+                Return Constants.DEFAULTSTRINGVALUE
+            End Try
+            LogonAttemptCount += 1
+        Loop Until (UserSecurityLevel <> Constants.DEFAULTSTRINGVALUE) Or (LogonAttemptCount = 3)
+
+        LoginForm.Close()
+        LoginForm = Nothing
+
+        If UserSecurityLevel <> Constants.DEFAULTSTRINGVALUE Then ' Logon is ok
+            ' Backdoor...
+            If LogonUsername = "REDACTED" Then
+                InteractiveUserUsername = "REDACTED"
+            End If
+
+            ConfigSettings = MySettings(InteractiveUserUsername)
+
+            InteractiveUserIsAuthenticated = True
+
+            TargetDirectoryConnectionUsername = CollectionValue("DirectoryUserUsername", ConfigSettings)
+            TargetDirectoryConnectionPassword =REDACTED"DirectoryUserPassword", ConfigSettings), gDecryptedEncryptionKey)
+
+            FileLoggingObject.WriteEvent("Determining Current Server Name", LOGGING_LEVEL.DEBUGGING)
+            CurrentDirectoryServer = DetermineTargetServerName(DirectoryServers)
+            FileLoggingObject.WriteEvent("Returned from determining Current Server Name", LOGGING_LEVEL.DEBUGGING)
+
+            If CurrentDirectoryServer <> Constants.DEFAULTSTRINGVALUE Then
+                TargetDirectoryUserRootDN = "LDAP://" & CurrentDirectoryServer & CollectionValue("DirectoryUserRoot", ConfigSettings)
+                TargetDirectoryPhoneRootDN = "LDAP://" & CurrentDirectoryServer & CollectionValue("DirectoryPhoneRoot", ConfigSettings)
+                TargetDirectoryConfigurationRootDN = "LDAP://" & CurrentDirectoryServer & CollectionValue("ConfigurationRoot", ConfigSettings)
+            Else
+                'MsgBox("No Directory Server could be contacted.  This is a critical error. " & My.Application.Info.AssemblyName & " cannot continue.", MsgBoxStyle.Exclamation + MsgBoxStyle.OkOnly, "Critical error")
+                FileLoggingObject.WriteEvent("No Directory Server could be contacted.  This is a critical error.  " & My.Application.Info.AssemblyName & " cannot continue.", LOGGING_LEVEL.DEBUGGING)
+            End If
+
+            FileLoggingObject.WriteEvent("*****************************", LOGGING_LEVEL.DEBUGGING)
+            FileLoggingObject.WriteEvent("DEBUGGING INFORMATION FOLLOWS", LOGGING_LEVEL.DEBUGGING)
+            FileLoggingObject.WriteEvent("*****************************", LOGGING_LEVEL.DEBUGGING)
+            FileLoggingObject.WriteEvent("Directory Username      : "REDACTED"Directory Password      : "REDACTED"Directory Path (User)   : " & TargetDirectoryUserRootDN, LOGGING_LEVEL.DEBUGGING)
+            FileLoggingObject.WriteEvent("Directory Path (Phone)  : " & TargetDirectoryPhoneRootDN, LOGGING_LEVEL.DEBUGGING)
+            FileLoggingObject.WriteEvent("Directory Path (Config) : " & TargetDirectoryConfigurationRootDN, LOGGING_LEVEL.DEBUGGING)
+            FileLoggingObject.WriteEvent("*****************************", LOGGING_LEVEL.DEBUGGING)
+
+            Return UserSecurityLevel
+        Else
+            Return Constants.DEFAULTSTRINGVALUE
+        End If
+
+    End Function
+
+    Public Function GetUserAccessLevel(ByVal Username As String) As String
+        Dim UsernameToCheck As String = Replace(Username, "\", "_")
+        Dim UserAccessLevel As String = Constants.DEFAULTSTRINGVALUE
+
+        If m_UserAccessLevelFound Then
+            Return m_UserAccessLevel
+            Exit Function
+        End If
+
+        ' Check Username is specified
+        If Username.Trim.Length = 0 Then
+            LastStatus.CADS_ERRORCODE = ErrorResult(Types.ERRORTYPE.SECURITY, Types.ERROR_SECURITY.USERNAME_NOT_SPECIFIED)
+            Return Constants.DEFAULTSTRINGVALUE
+        End If
+
+        ' Look for the user in our security configuration
+
+        'If LastStatus.CADS_ERRORCODE = SUCCESS Then
+        'ConfigFilenameAndPath = m_ConfigFilenameAndPath
+        UserAccessLevel = LoadConfigSettingAttribute("SystemSecurityLevels", UsernameToCheck, "SecurityValue")
+
+        If LastStatus.CADS_ERRORCODE = Types.ERRORTYPE.SUCCESS Then
+            ' All good
+            m_UserAccessLevel = UserAccessLevel
+            m_UserAccessLevelFound = True
+            Return UserAccessLevel
+        Else
+            Select Case LastStatus.CADS_ERRORCODE
+                Case 131073
+                    Debug.Print("HELP!")
+                Case Else
+            End Select
+            LastStatus.CADS_ERRORCODE = ErrorResult(Types.ERRORTYPE.SECURITY, Types.ERROR_SECURITY.NOT_AUTHORISED)
+            Return Constants.DEFAULTSTRINGVALUE
+        End If
+
+    End Function
+
+#End Region
+
+#Region " Collections "
+
+    Public Function CheckEnforced(ByVal SettingValue As String) As Boolean
+        Dim Values() As String
+        Dim Value As String
+        Dim Enforced As Boolean
+
+        Try
+            Values = Split(SettingValue, "|")
+
+            If Values.Length = 2 Then
+                Value = Values(0)
+                Enforced = CBool(Values(1))
+                Return Enforced
+            Else
+                Return False
+            End If
+        Catch ex As Exception
+            Return False
+        End Try
+    End Function
+
+    Public Sub CopySetting(ByVal SourceSettingName As String, ByVal DestinationSettingName As String, ByVal SourceCollection As OrderedDictionary, ByRef DestinationCollection As OrderedDictionary)
+        Dim CollectionKey As String = SourceSettingName
+
+        If SourceCollection.Contains(SourceSettingName) Then
+            If DestinationCollection.Contains(CollectionKey) Then ' replace the existing value
+                DestinationCollection.Remove(CollectionKey)
+            End If
+            DestinationCollection.Add(DestinationSettingName, SourceCollection(CollectionKey))
+        End If
+
+    End Sub
+
+    Public Sub CloneCollection(ByVal SourceCollection As OrderedDictionary, ByRef DestinationCollection As OrderedDictionary)
+        Dim CollectionItem As DictionaryEntry
+
+        For Each CollectionItem In SourceCollection
+            Try
+                DestinationCollection.Add(CollectionItem.Key, CollectionItem.Value)
+            Catch ex As Exception
+            End Try
+        Next
+
+    End Sub
+
+    Public Sub MergeCollections(ByVal SourceCollection1 As OrderedDictionary, ByVal SourceCollection2 As OrderedDictionary, ByRef DestinationCollection As OrderedDictionary, Optional ByVal UseEnforcedValue As Boolean = False)
+        Dim SourceValueToUse As String
+
+#If DEBUG Then
+        Debug.Print("Merging Collections...")
+#End If
+        For Each CollectionItem In SourceCollection1
+            SourceValueToUse = GetOverridingSetting(CollectionItem.Key, SourceCollection1, SourceCollection2)
+#If DEBUG Then
+            'Debug.Print("..." & SourceValueToUse)
+#End If
+            DestinationCollection.Add(CollectionItem.Key, SourceValueToUse)
+        Next
+    End Sub
+
+    Public Function GetOverridingSetting(ByVal SettingName As String, ByVal LevelSettings As OrderedDictionary, ByVal UserSettings As OrderedDictionary) As String
+        Dim LevelSetting As String = ""
+        Dim UserSetting As String = ""
+
+        Dim LevelSettingEnforced As Boolean = False
+        Dim UserSettingEnforced As Boolean = False
+        Dim Enforced As Boolean = False
+
+        Dim FinalSetting As String = ""
+
+        If UserSettings.Contains(SettingName) Then
+            UserSetting = UserSettings(SettingName)
+        End If
+        If LevelSettings.Contains(SettingName) Then
+            LevelSetting = LevelSettings(SettingName)
+        End If
+
+        LevelSettingEnforced = CheckEnforced(LevelSetting)
+        UserSettingEnforced = CheckEnforced(UserSetting)
+
+        If UserSettingEnforced Then
+            FinalSetting = UserSetting
+            Enforced = True
+        ElseIf LevelSettingEnforced Then
+            FinalSetting = LevelSetting
+            Enforced = True
+        End If
+
+        If Not Enforced Then
+            If UserSetting <> "" Then
+                FinalSetting = UserSetting
+            ElseIf LevelSetting <> "" Then
+                FinalSetting = LevelSetting
+            End If
+        End If
+
+        Return FinalSetting
+    End Function
+
+#End Region
+
+#Region " Encryption "
+
+    ''' <summary>
+    ''' Decrypts the given string from a format suitable for output to XML files
+    ''' </summary>
+    ''' <param name="stringToDecrypt">Input string to decrypt</param>
+    ''' <param name="EncryptionKey">The Key used to decrypt the string</param>
+    ''' <returns>Decrypted String</returns>
+    ''' <remarks>V1.0 D. Robinson</remarks>
+    Public Function XMLDecrypt(ByVal stringToDecrypt As String, ByVal EncryptionKey As String) As String
+        Dim inputByteArray(stringToDecrypt.Length) As Byte
+        Dim RSAkey() As Byte = {}
+        Dim IV() As Byte = {&H12, &H34, &H56, &H78, &H90, &HAB, &HCD, &HEF}
+        Dim DecryptedString As String
+        ' Note: The DES CryptoService only accepts certain key byte lengths
+        ' We are going to make things easy by insisting on an 8 byte legal key length
+
+        Try
+            RSAkey = System.Text.Encoding.UTF8.GetBytes(Microsoft.VisualBasic.Left(EncryptionKey, 8))
+            Dim des As New DESCryptoServiceProvider()
+            ' we have a base 64 encoded string so first must decode to regular unencoded (encrypted) string
+            inputByteArray = Convert.FromBase64String(stringToDecrypt)
+            ' now decrypt the regular string
+            Dim ms As New MemoryStream()
+            Dim cs As New CryptoStream(ms, des.CreateDecryptor(RSAkey, IV), CryptoStreamMode.Write)
+            cs.Write(inputByteArray, 0, inputByteArray.Length)
+            cs.FlushFinalBlock()
+            Dim encoding As System.Text.Encoding = System.Text.Encoding.UTF8
+            DecryptedString = encoding.GetString(ms.ToArray())
+            LastStatus.Clear()
+            LastStatus.CADS_ERRORCODE = SUCCESS
+            Return DecryptedString
+        Catch ex As Exception
+            LastStatus.LastException = ex
+            LastStatus.CADS_ERRORCODE = ErrorResult(ERRORTYPE.CRYPT, DECRYPTION_ERROR)
+            Return Constants.DEFAULTSTRINGVALUE
+        End Try
+    End Function
+
+    ''' <summary>
+    ''' Encrypts the given string to a format suitable for XML files
+    ''' </summary>
+    ''' <param name="stringToEncrypt">Input string to encrypt</param>
+    ''' <param name="EncryptionKey">The Key used to decrypt the string</param>
+    ''' <returns>The encrypted string</returns>
+    ''' <remarks>V1.0 D. Robinson</remarks>
+    Public Function XMLEncrypt(ByVal StringToEncrypt As String, ByVal EncryptionKey As String) As String
+        Dim RSAkey() As Byte = {}
+        Dim IV() As Byte = {&H12, &H34, &H56, &H78, &H90, &HAB, &HCD, &HEF}
+        Dim EncryptedString As String
+
+        Try
+            RSAkey = System.Text.Encoding.UTF8.GetBytes(Microsoft.VisualBasic.Left(EncryptionKey, 8))
+            Dim des As New DESCryptoServiceProvider()
+            ' convert our input string to a byte array
+            Dim inputByteArray() As Byte = Encoding.UTF8.GetBytes(StringToEncrypt)
+            'now encrypt the bytearray
+            Dim ms As New MemoryStream()
+            Dim cs As New CryptoStream(ms, des.CreateEncryptor(RSAkey, IV), CryptoStreamMode.Write)
+            cs.Write(inputByteArray, 0, inputByteArray.Length)
+            cs.FlushFinalBlock()
+            ' now return the byte array as a "safe for XMLDOM" Base64 String
+            EncryptedString = Convert.ToBase64String(ms.ToArray())
+            LastStatus.Clear()
+            LastStatus.CADS_ERRORCODE = SUCCESS
+            Return EncryptedString
+        Catch ex As Exception
+            LastStatus.LastException = ex
+            LastStatus.CADS_ERRORCODE = ErrorResult(ERRORTYPE.CRYPT, ENCRYPTION_ERROR)
+            Return Constants.DEFAULTSTRINGVALUE
+        End Try
+    End Function
+
+    ''' <summary>
+    ''' Simple Decryption routine.  Do not use for sensitive information
+    ''' </summary>
+    ''' <param name="InputText">Input string to en\decrypt</param>
+    ''' <returns>Output string en\decrypted</returns>
+    ''' <remarks>V1.0  D. Robinson</remarks>
+    Public Function SimpleCrypt(ByVal InputText As String) As String
+        Dim OutputText As String
+
+        ' Encrypts/decrypts the passed string using a simple ASCII value-swapping algorithm
+        Try
+            Dim strTempChar As String = "", i As Integer
+            For i = 1 To Len(InputText)
+                If Asc(Mid$(InputText, i, 1)) < 128 Then
+                    strTempChar = _
+              CType(Asc(Mid$(InputText, i, 1)) + 128, String)
+                ElseIf Asc(Mid$(InputText, i, 1)) > 128 Then
+                    strTempChar = _
+              CType(Asc(Mid$(InputText, i, 1)) - 128, String)
+                End If
+                Mid$(InputText, i, 1) = _
+                    Chr(CType(strTempChar, Integer))
+            Next i
+            OutputText = InputText
+
+            LastStatus.Clear()
+            LastStatus.CADS_ERRORCODE = SUCCESS
+
+            Return OutputText
+        Catch ex As Exception
+            LastStatus.LastException = ex
+            LastStatus.CADS_ERRORCODE = ErrorResult(ERRORTYPE.CRYPT, GENERAL_ERROR)
+            Return Constants.DEFAULTSTRINGVALUE
+            ' ErrorResult(ERRORTYPE.CRYPT, GENERAL_ERROR)
+        End Try
+    End Function
+
+    ''' <summary>
+    ''' 3DES Decryption
+    ''' </summary>
+    ''' <param name="InputString">String to decrypt</param>
+    ''' <param name="CryptoKey">The Key used to decrypt the string</param>
+    ''' <returns>The Decrypted string</returns>
+    ''' <remarks>V1.0 D. Robinson</remarks>
+    Public Function Decrypt3DES(ByVal InputString As String, ByVal CryptoKey As String) As String
+        Dim buffer() As Byte
+        Dim CryptoClass As New TripleDESCryptoServiceProvider
+        Dim CryptoProvider As New MD5CryptoServiceProvider
+        Dim Vector() As Byte = {240, 3, 45, 29, 0, 76, 173, 59}
+        Dim DecryptedString As String
+
+        Try
+            buffer = Convert.FromBase64String(InputString)
+            CryptoClass.Key = CryptoProvider.ComputeHash(ASCIIEncoding.ASCII.GetBytes(CryptoKey))
+            CryptoClass.IV = Vector
+            DecryptedString = Encoding.ASCII.GetString(CryptoClass.CreateDecryptor().TransformFinalBlock(buffer, 0, buffer.Length()))
+
+            LastStatus.Clear()
+            LastStatus.CADS_ERRORCODE = SUCCESS
+
+            Return DecryptedString
+        Catch ex As Exception
+            LastStatus.LastException = ex
+            LastStatus.CADS_ERRORCODE = ErrorResult(ERRORTYPE.CRYPT, DECRYPTION_ERROR)
+            Return Constants.DEFAULTSTRINGVALUE
+        Finally
+            CryptoClass.Clear()
+            CryptoProvider.Clear()
+            CryptoClass = Nothing
+            CryptoProvider = Nothing
+        End Try
+
+    End Function
+
+    ''' <summary>
+    ''' 3DES Encryption
+    ''' </summary>
+    ''' <param name="InputString">String to encrypt</param>
+    ''' <param name="CryptoKey">The Key used to encrypt the string</param>
+    ''' <returns>The encrypted string</returns>
+    ''' <remarks>V1.0 D. Robinson</remarks>
+    Public Function Encrypt3DES(ByVal InputString As String, ByVal CryptoKey As String) As String
+        Dim CryptoClass As New TripleDESCryptoServiceProvider
+        Dim CryptoProvider As New MD5CryptoServiceProvider
+        Dim Buffer() As Byte
+        Dim Vector() As Byte = {240, 3, 45, 29, 0, 76, 173, 59}
+        Dim EncryptedString As String
+
+        Try
+            Buffer = System.Text.Encoding.ASCII.GetBytes(InputString)
+            CryptoClass.Key = CryptoProvider.ComputeHash(ASCIIEncoding.ASCII.GetBytes(CryptoKey))
+            CryptoClass.IV = Vector
+            InputString = Convert.ToBase64String(CryptoClass.CreateEncryptor().TransformFinalBlock(Buffer, 0, Buffer.Length()))
+            EncryptedString = InputString
+
+            LastStatus.Clear()
+            LastStatus.CADS_ERRORCODE = SUCCESS
+
+            Return EncryptedString
+        Catch ex As Exception
+            LastStatus.LastException = ex
+            LastStatus.CADS_ERRORCODE = ErrorResult(ERRORTYPE.CRYPT, ENCRYPTION_ERROR)
+            Return Constants.DEFAULTSTRINGVALUE
+        Finally
+            CryptoClass.Clear()
+            CryptoProvider.Clear()
+            CryptoClass = Nothing
+            CryptoProvider = Nothing
+        End Try
+    End Function
+
+    ''' <summary>
+    ''' Rijndael 128 bit encryption
+    ''' </summary>
+    ''' <param name="StringToBeEncrypted">String To Be Encrypted</param>
+    ''' <param name="EncryptionKey">Encryption Key</param>
+    ''' <returns>EncryptedResult</returns>
+    ''' <remarks>V1.0 D. Robinson</remarks>
+    Public Function EncryptString128Bit(ByVal StringToBeEncrypted As String, ByVal EncryptionKey As String) As String
+        Dim bytValue() As Byte
+        Dim bytKey() As Byte
+        Dim bytEncoded() As Byte = {}
+        Dim bytIV() As Byte = {121, 241, 10, 1, 132, 74, 11, 39, 255, 91, 45, 78, 14, 211, 22, 62}
+        Dim intLength As Integer
+        Dim intRemaining As Integer
+        Dim objMemoryStream As New MemoryStream()
+        Dim objCryptoStream As CryptoStream
+        Dim objRijndaelManaged As RijndaelManaged
+        Dim EncryptedResult As String
+
+        '   **********************************************************************
+        '   ******  Strip any null character from string to be encrypted    ******
+        '   **********************************************************************
+
+        StringToBeEncrypted = StripNullCharacters(StringToBeEncrypted)
+
+        '   **********************************************************************
+        '   ******  Value must be within ASCII range (i.e., no DBCS chars)  ******
+        '   **********************************************************************
+
+        bytValue = Encoding.ASCII.GetBytes(StringToBeEncrypted.ToCharArray)
+
+        intLength = Len(EncryptionKey)
+
+        '   ********************************************************************
+        '   ******   Encryption Key must be 256 bits long (32 bytes)      ******
+        '   ******   If it is longer than 32 bytes it will be truncated.  ******
+        '   ******   If it is shorter than 32 bytes it will be padded     ******
+        '   ******   with upper-case Xs.                                  ****** 
+        '   ********************************************************************
+
+        If intLength >= 32 Then
+            EncryptionKey = Strings.Left(EncryptionKey, 32)
+        Else
+            intLength = Len(EncryptionKey)
+            intRemaining = 32 - intLength
+            EncryptionKey = EncryptionKey & Strings.StrDup(intRemaining, "X")
+        End If
+
+        bytKey = Encoding.ASCII.GetBytes(EncryptionKey.ToCharArray)
+
+        objRijndaelManaged = New RijndaelManaged()
+
+        '   ***********************************************************************
+        '   ******  Create the encryptor and write value to it after it is   ******
+        '   ******  converted into a byte array                              ******
+        '   ***********************************************************************
+
+        Try
+
+            objCryptoStream = New CryptoStream(objMemoryStream, _
+              objRijndaelManaged.CreateEncryptor(bytKey, bytIV), _
+              CryptoStreamMode.Write)
+            objCryptoStream.Write(bytValue, 0, bytValue.Length)
+
+            objCryptoStream.FlushFinalBlock()
+
+            bytEncoded = objMemoryStream.ToArray
+            objMemoryStream.Close()
+            objCryptoStream.Close()
+        Catch
+
+        End Try
+
+        '   ***********************************************************************
+        '   ******   Return encryptes value (converted from  byte Array to   ******
+        '   ******   a base64 string).  Base64 is MIME encoding)             ******
+        '   ***********************************************************************
+
+        EncryptedResult = Convert.ToBase64String(bytEncoded)
+
+        LastStatus.Clear()
+        LastStatus.CADS_ERRORCODE = SUCCESS
+
+        Return EncryptedResult
+    End Function
+
+    ''' <summary>
+    ''' Rijndael 128 bit decryption
+    ''' </summary>
+    ''' <param name="StringToBeDecrypted">String To Be Decrypted</param>
+    ''' <param name="DecryptionKey">Decryption Key</param>
+    ''' <returns>DecryptedResult</returns>
+    ''' <remarks>V1.0 D. Robinson</remarks>
+    Public Function DecryptString128Bit(ByVal StringToBeDecrypted As String, ByVal DecryptionKey As String) As String
+        Dim bytDataToBeDecrypted() As Byte
+        Dim bytTemp() As Byte
+        Dim bytIV() As Byte = {121, 241, 10, 1, 132, 74, 11, 39, 255, 91, 45, 78, 14, 211, 22, 62}
+        Dim objRijndaelManaged As New RijndaelManaged()
+        Dim objMemoryStream As MemoryStream
+        Dim objCryptoStream As CryptoStream
+        Dim bytDecryptionKey() As Byte
+
+        Dim intLength As Integer
+        Dim intRemaining As Integer
+        Dim strReturnString As String = String.Empty
+        Dim DecryptedResult As String
+
+        '   *****************************************************************
+        '   ******   Convert base64 encrypted value to byte array      ******
+        '   *****************************************************************
+
+        bytDataToBeDecrypted = Convert.FromBase64String(StringToBeDecrypted)
+
+        '   ********************************************************************
+        '   ******   Encryption Key must be 256 bits long (32 bytes)      ******
+        '   ******   If it is longer than 32 bytes it will be truncated.  ******
+        '   ******   If it is shorter than 32 bytes it will be padded     ******
+        '   ******   with upper-case Xs.                                  ****** 
+        '   ********************************************************************
+
+        intLength = Len(DecryptionKey)
+
+        If intLength >= 32 Then
+            DecryptionKey = Strings.Left(DecryptionKey, 32)
+        Else
+            intLength = Len(DecryptionKey)
+            intRemaining = 32 - intLength
+            DecryptionKey = DecryptionKey & Strings.StrDup(intRemaining, "X")
+        End If
+
+        bytDecryptionKey = Encoding.ASCII.GetBytes(DecryptionKey.ToCharArray)
+
+        ReDim bytTemp(bytDataToBeDecrypted.Length)
+
+        objMemoryStream = New MemoryStream(bytDataToBeDecrypted)
+
+        '   ***********************************************************************
+        '   ******  Create the decryptor and write value to it after it is   ******
+        '   ******  converted into a byte array                              ******
+        '   ***********************************************************************
+
+        Try
+
+            objCryptoStream = New CryptoStream(objMemoryStream, _
+               objRijndaelManaged.CreateDecryptor(bytDecryptionKey, bytIV), _
+               CryptoStreamMode.Read)
+
+            objCryptoStream.Read(bytTemp, 0, bytTemp.Length)
+
+            objCryptoStream.FlushFinalBlock()
+            objMemoryStream.Close()
+            objCryptoStream.Close()
+
+        Catch
+
+        End Try
+
+        '   *****************************************
+        '   ******   Return decypted value     ******
+        '   *****************************************
+
+        DecryptedResult = StripNullCharacters(Encoding.ASCII.GetString(bytTemp))
+
+        LastStatus.Clear()
+        LastStatus.CADS_ERRORCODE = SUCCESS
+
+        Return DecryptedResult
+    End Function
+
+    ''' <summary>
+    ''' Strips NULL characters
+    ''' </summary>
+    ''' <param name="StringWithNulls"></param>
+    ''' <returns></returns>
+    ''' <remarks></remarks>
+    Private Function StripNullCharacters(ByVal StringWithNulls As String) As String
+        Dim Position As Integer = 0
+        Dim StringWithoutNulls As String = ""
+
+        Position = 1
+        StringWithoutNulls = StringWithNulls
+
+        Do While Position > 0
+            Position = InStr(Position, StringWithNulls, vbNullChar)
+
+            If Position > 0 Then
+                StringWithoutNulls = Microsoft.VisualBasic.Left(StringWithoutNulls, Position - 1) & _
+                                  Microsoft.VisualBasic.Right(StringWithoutNulls, Len(StringWithoutNulls) - Position)
+            End If
+
+            If Position > StringWithoutNulls.Length Then
+                Exit Do
+            End If
+        Loop
+
+        Return StringWithoutNulls
+
+    End Function
+
+#End Region
+
+#Region " Config Client "
+
+    Private m_ClientChannel As ChannelFactory(Of IService)
+    Public ConfigClient As IService
+
+    'Private m_Port As Long = 8000
+    'Private m_Host As String = "localhost"
+    'Private m_ServerAddress As String
+
+    'Public Property Port() As Long
+    '    Get
+    '        Return m_Port
+    '    End Get
+    '    Set(ByVal value As Long)
+    '        m_Port = value
+    '        UpdateServerAddress()
+    '    End Set
+    'End Property
+
+    'Public Property Host() As String
+    '    Get
+    '        Return m_Host
+    '    End Get
+    '    Set(ByVal value As String)
+    '        m_Host = value
+    '        UpdateServerAddress()
+    '    End Set
+    'End Property
+
+    'Public ReadOnly Property ServerAddress() As String
+    '    Get
+    '        Return m_ServerAddress
+    '    End Get
+    'End Property
+
+    Public Sub StartClient()
+        If m_ClientState = SERVICE_STATE.STARTED Then
+            Debug.Print("Client is already running.")
+        Else
+            Try
+                m_ClientChannel = New ChannelFactory(Of IService)(New WebHttpBinding(), "http://" & m_ServerAddress)
+
+                m_ClientChannel.Endpoint.Behaviors.Add(New WebHttpBehavior())
+
+                ConfigClient = m_ClientChannel.CreateChannel()
+
+                Debug.Print("Client is running...")
+                m_ClientState = SERVICE_STATE.STARTED
+
+            Catch cex As CommunicationException
+            Catch ex As Exception
+            End Try
+        End If
+    End Sub
+
+    Public Sub StopClient()
+        If m_ClientState = SERVICE_STATE.STOPPED Then
+            Debug.Print("Client is already stopped.")
+        Else
+            Try
+                m_ClientChannel.Close()
+            Catch ex As Exception
+            End Try
+            Debug.Print("Client is stopped.")
+        End If
+    End Sub
+
+    Private Sub UpdateServerAddress()
+        If m_Port <> 0 Then
+            m_ServerAddress = m_Host & ":" & m_Port.ToString
+        Else
+            m_ServerAddress = m_Host
+        End If
+    End Sub
+
+    'Public Sub Close()
+    '    StopClient()
+    'End Sub
+
+    'Public Sub Open()
+    '    StartClient()
+    'End Sub
+
+    'Private Sub UpdateServerAddress()
+    '    If m_Port <> 0 Then
+    '        m_ServerAddress = m_Host & ":" & m_Port.ToString
+    '    Else
+    '        m_ServerAddress = m_Host
+    '    End If
+    'End Sub
+
+#End Region
+
+    Protected Overrides Sub Finalize()
+        FileLoggingObject.WriteInformationEvent("--------------------------Completion------------------------------")
+        FileLoggingObject.WriteInformationEvent("------------------------------------------------------------------")
+        MyBase.Finalize()
+    End Sub
+
+End Class
+
+

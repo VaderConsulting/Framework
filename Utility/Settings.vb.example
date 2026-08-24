@@ -1,0 +1,223 @@
+﻿Imports System.DirectoryServices
+
+Imports Utility.Functions
+Imports Utility.Types
+Imports Utility.Types.ERRORTYPE
+Imports Utility.Types.ERROR_CONFIG
+Imports Utility.Types.ERROR_CRYPT
+Imports Utility.Types.ERROR_DIRECTORY
+Imports Utility.Constants
+Imports Utility.Types.ERROR_FILESYSTEM
+Imports Utility.Types.ERROR_SECURITY
+Imports Utility.Types.LoggingType
+
+Public Class Settings
+
+    Public Shared InteractiveUserUsername As String = ""
+    Public Shared InteractiveUserPassword As String = ""
+    Public Shared InteractiveUserIsAuthenticated As Boolean = False
+    Public Shared CurrentADSitename As String = ""
+    Public Shared TargetDirectoryUserDN As String = ""
+    Public Shared TargetDirectoryServerAndPort As String = ""
+    Public Shared TargetDirectoryUserRootDN As String = ""
+    Public Shared TargetDirectoryPhoneRootDN As String = ""
+    Public Shared TargetDirectoryUser As DirectoryEntry
+    Public Shared TargetDirectoryConnectionUsername As String = ""
+    Public Shared TargetDirectoryConnectionPassword As String = ""
+    Public Shared ConnectAnonymously As Boolean = True
+    Public Shared LastError As Status
+    Public Shared LogFilename As String = My.Application.Info.DirectoryPath & "\Logfile.txt"
+    Public Shared FileLoggingObject As New Logging(LogFilename)
+
+    Public LastStatus As New Status
+
+    'Private m_Variables As New CADS.Helper
+
+    Public Sub New()
+        DoStartup()
+    End Sub
+
+    Public Sub New(ByVal LogFilename As String)
+        DoStartup()
+    End Sub
+
+    'Public Shared Property TargetUserDN() As String
+    '    Get
+    '        Return m_TargetDirectoryUserDN
+    '    End Get
+    '    Set(ByVal value As String)
+    '        m_TargetDirectoryUserDN = value
+    '    End Set
+    'End Property
+
+    'Public Shared Property TargetDirectoryServerAndPort() As String
+    '    Get
+    '        Return m_TargetDirectoryServerAndPort
+    '    End Get
+    '    Set(ByVal value As String)
+    '        If value.EndsWith("/") Then
+    '            m_TargetDirectoryServerAndPort = value
+    '        Else
+    '            m_TargetDirectoryServerAndPort = value & "/"
+    '        End If
+    '    End Set
+    'End Property
+
+    'Public Shared Property TargetDirectoryUserRootDN() As String
+    '    Get
+    '        Return m_TargetDirectoryUserRootDN
+    '    End Get
+    '    Set(ByVal value As String)
+    '        m_TargetDirectoryUserRootDN = value
+    '    End Set
+    'End Property
+
+    'Public Shared Property TargetDirectoryPhoneRootDN() As String
+    '    Get
+    '        Return m_TargetDirectoryPhoneRootDN
+    '    End Get
+    '    Set(ByVal value As String)
+    '        m_TargetDirectoryPhoneRootDN = value
+    '    End Set
+    'End Property
+
+    'Public Shared Property TargetDirectoryUser() As DirectoryEntry
+    '    Get
+    '        Return m_TargetDirectoryUser
+    '    End Get
+    '    Set(ByVal value As DirectoryEntry)
+    '        m_TargetDirectoryUser = value
+    '    End Set
+    'End Property
+
+    'Public Shared Property LastError() As Status
+    '    Get
+    '        Return m_LastError
+    '    End Get
+    '    Set(ByVal value As Status)
+    '        m_LastError = value
+    '    End Set
+    'End Property
+
+    'Public Shared Property TargetDirectoryConnectionUsername() As String
+    '    Get
+    '        Return m_TargetDirectoryConnectionUsername
+    '    End Get
+    '    Set(ByVal value As String)
+    '        m_TargetDirectoryConnectionUsername = value
+    '    End Set
+    'End Property
+
+    'Public Shared Property TargetDirectoryConnectionPassword() As String
+    '    Get
+    '        Return m_TargetDirectoryConnectionPassword
+    '    End Get
+    '    Set(ByVal value As String)
+    '        m_TargetDirectoryConnectionUsername = value
+    '    End Set
+    'End Property
+
+    'Public Shared Property ConnectAnonymously() As Boolean
+    '    Get
+    '        Return m_ConnectAnonymously
+    '    End Get
+    '    Set(ByVal value As Boolean)
+    '        m_ConnectAnonymously = value
+    '    End Set
+    'End Property
+
+    '''' <summary>
+    '''' The username of the currently logged-on user
+    '''' </summary>
+    '''' <value>The username to set</value>
+    '''' <returns>The username (including the Domain) of the currently logged-on user</returns>
+    '''' <remarks>V1.0 D. Robinson</remarks>
+    'Public Shared Property InteractiveUserUsername() As String
+    '    Get
+    '        Return m_InteractiveUserUsername
+    '    End Get
+    '    Set(ByVal value As String)
+    '        m_InteractiveUserUsername = value
+    '    End Set
+    'End Property
+
+    '''' <summary>
+    '''' The password of the currently logged-on user
+    '''' </summary>
+    '''' <value>The password to set</value>
+    '''' <returns>The password of the currently logged-on user</returns>
+    '''' <remarks>V1.0 D. Robinson</remarks>
+    'Public Shared Property InteractiveUserPassword() As String
+    '    Get
+    '        Return m_InteractiveUserPassword
+    '    End Get
+    '    Set(ByVal value As String)
+    '        m_InteractiveUserPassword =REDACTED
+    '    End Set
+    'End Property
+
+    '''' <summary>
+    '''' A flag indicating whether the logged-on user has already been authenticated
+    '''' </summary>
+    '''' <value></value>
+    '''' <returns></returns>
+    '''' <remarks>V1.0 D. Robinson</remarks>
+    'Public Shared Property IsAuthenticated() As Boolean
+    '    Get
+    '        Return m_InteractiveUserIsAuthenticated
+    '    End Get
+    '    Set(ByVal value As Boolean)
+    '        m_InteractiveUserIsAuthenticated = value
+    '    End Set
+    'End Property
+
+    '''' <summary>
+    '''' The Active Directory Sitename of the current computer
+    '''' </summary>
+    '''' <value>The sitename to set</value>
+    '''' <returns>The Active Directory Sitename of the current computer</returns>
+    '''' <remarks>V1.0 D. Robinson</remarks>
+    'Public Shared Property CurrentADSitename() As String
+    '    Get
+    '        Return m_CurrentADSitename
+    '    End Get
+    '    Set(ByVal value As String)
+    '        m_CurrentADSitename = value
+    '    End Set
+    'End Property
+
+    Protected Overrides Sub Finalize()
+        If TargetDirectoryUser IsNot Nothing Then
+            TargetDirectoryUser.Close()
+            TargetDirectoryUser = Nothing
+        End If
+
+        ' Resume normal operation
+        MyBase.Finalize()
+    End Sub
+
+    Private Sub DoStartup()
+        FileLoggingObject.LogType = LoggingType.LogFile
+        InteractiveUserUsername = My.User.Name
+
+        Try
+            CurrentADSitename = My.Computer.Registry.GetValue("HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\NetLogon\Parameters", "DynamicSiteName", "")
+        Catch ex As Exception
+
+            FileLoggingObject.WriteErrorEvent("Error reading AD Sitename from registry path")
+        End Try
+    End Sub
+
+    Private m_ConfigurationFile As New ConfigFile
+    'Private m_Settings As New Settings
+
+    Public Property ConfigFile() As ConfigFile
+        Get
+            Return m_ConfigurationFile
+        End Get
+        Set(ByVal value As ConfigFile)
+            m_ConfigurationFile = value
+        End Set
+    End Property
+
+End Class

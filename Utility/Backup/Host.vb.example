@@ -1,0 +1,502 @@
+﻿Imports System
+Imports System.ServiceModel
+Imports System.ServiceModel.Web
+Imports System.ServiceModel.Description
+Imports System.Collections.Specialized
+Imports Utility.Types
+
+Public Class Host
+    Implements IService
+
+    Private m_Functions As New Functions
+    Private m_Port As Long = 8000
+    Private m_Host As String = "localhost"
+    Private m_ServerAddress As String
+    Private HostInstance As WebServiceHost
+    Private m_MaxMessageSizeMb As Long = 5 'Mb
+    Private m_ConfigurationFilename As String = My.Application.Info.DirectoryPath & "\cads.config"
+    Private m_UserAccessLevel As String = Constants.DEFAULTSTRINGVALUE
+    Private m_UserAccessLevelFound As Boolean = False
+    Private m_ServiceState As SERVICE_STATE = SERVICE_STATE.STOPPED
+
+    Public Property Port() As Long
+        Get
+            Return m_Port
+        End Get
+        Set(ByVal value As Long)
+            m_Port = value
+            UpdateServerAddress()
+        End Set
+    End Property
+
+    Public Property Host() As String
+        Get
+            Return m_Host
+        End Get
+        Set(ByVal value As String)
+            m_Host = value
+            UpdateServerAddress()
+        End Set
+    End Property
+
+    Public Property MaxMessageSizeMb() As Long
+        Get
+            Return m_MaxMessageSizeMb
+        End Get
+        Set(ByVal value As Long)
+            m_MaxMessageSizeMb = value
+        End Set
+    End Property
+
+    Public ReadOnly Property ServerAddress() As String
+        Get
+            Return m_ServerAddress
+        End Get
+    End Property
+
+    Public ReadOnly Property ServiceState() As SERVICE_STATE
+        Get
+            Return m_ServiceState
+        End Get
+    End Property
+
+    Sub New()
+        UpdateServerAddress()
+    End Sub
+
+    Private Sub UpdateServerAddress()
+        If m_Port <> 0 Then
+            m_ServerAddress = m_Host & ":" & m_Port.ToString
+        Else
+            m_ServerAddress = m_Host
+        End If
+    End Sub
+
+    Public Sub StartHost()
+        If m_ServiceState <> SERVICE_STATE.STARTED Then
+            HostInstance = New WebServiceHost(GetType(Host), New Uri("http://" & ServerAddress & "/"))
+
+            Dim Binding As New WebHttpBinding
+
+            Dim MaxMessageSize As Long = (1024 * 1024) * m_MaxMessageSizeMb 'Mb
+
+            Binding.MaxBufferSize = MaxMessageSize
+            Binding.MaxReceivedMessageSize = MaxMessageSize
+
+            Dim Endpoint As ServiceEndpoint = HostInstance.AddServiceEndpoint(GetType(IService), Binding, "")
+
+            ' Turn off the HTTP Help page:
+            Dim sdb As ServiceDebugBehavior = HostInstance.Description.Behaviors.Find(Of ServiceDebugBehavior)()
+            sdb.HttpHelpPageEnabled = False
+
+            HostInstance.Open()
+            Debug.Print("Service is running...")
+            m_ServiceState = SERVICE_STATE.STARTED
+        Else
+            Debug.Print("Service has already been started.")
+        End If
+    End Sub
+
+    Public Sub StopHost()
+        If m_ServiceState = SERVICE_STATE.STARTED Then
+            Try
+                HostInstance.Close()
+            Catch ex As Exception
+            End Try
+            Debug.Print("Service is stopped.")
+            m_ServiceState = SERVICE_STATE.STOPPED
+            HostInstance = Nothing
+        Else
+            Debug.Print("Service is not running.")
+        End If
+    End Sub
+
+    Public Function LoadConfigSection(ByVal SectionName As String) As System.Collections.Specialized.OrderedDictionary Implements IService.LoadConfigSection
+        Debug.Print("Inside LoadConfigSection")
+        Try
+            m_Functions.ConfigFilenameAndPath = m_ConfigurationFilename
+            LoadConfigSection(SectionName)
+
+            Return m_Functions.ConfigContents
+        Catch ex As Exception
+            m_Functions.LastStatus.LastException = ex
+            Return m_Functions.ConfigContents
+        End Try
+    End Function
+
+    Public Function LoadConfigSetting(ByVal SectionName As String, ByVal SettingName As String) As String Implements IService.LoadConfigSetting
+        Dim ReturnValue As String = Constants.DEFAULTSTRINGVALUE
+
+        Try
+            m_Functions.ConfigFilenameAndPath = m_ConfigurationFilename
+            ReturnValue = m_Functions.LoadConfigSetting(SectionName, SettingName)
+
+            Return ReturnValue
+        Catch ex As Exception
+            m_Functions.LastStatus.LastException = ex
+            Return ReturnValue
+        End Try
+    End Function
+
+    Public Function LoadConfigSettingAttribute(ByVal SectionName As String, ByVal SettingName As String, ByVal AttributeName As String) As String Implements IService.LoadConfigSettingAttribute
+        Dim ReturnString As String = ""
+
+        Return ReturnString
+    End Function
+
+    Public Function LoadConfigSettingAttributes(ByVal SectionName As String, ByVal SettingName As String) As System.Collections.Specialized.OrderedDictionary Implements IService.LoadConfigSettingAttributes
+        Dim ReturnCollection As New Collections.Specialized.OrderedDictionary
+
+        Return ReturnCollection
+    End Function
+
+    Public Function Logon(ByVal Username As String, ByVal Password As String) As String Implements IService.Logon
+        Dim Result As String = ""
+
+        If Username <> "" Then
+            ' Look for this username
+        Else
+            Result = ""
+        End If
+
+        Return Result
+    End Function
+
+    Public Function MySection(ByVal Username As String, ByVal SectionName As String) As System.Collections.Specialized.OrderedDictionary Implements IService.MySection
+        Dim FinalSettings As New OrderedDictionary
+        Dim SecurityLevels As New OrderedDictionary
+        Dim MySecuritylevel As UInt64
+
+        Dim UserSettings As New OrderedDictionary
+        Dim LevelSettings As New OrderedDictionary
+        Dim ConfigFilename As String = m_ConfigurationFilename ' Save this because we have to switch between files
+        Dim NonStandardConfigFilename As String = ""
+        Dim UserConfigExists As Boolean = False
+        Dim UsernameToCheck As String = Replace(Username, "\", "_")
+
+        ' Determine what level names this user has
+        MySecuritylevel = GetUserAccessLevel(Username)
+        'SecurityLevels = UserSecurityLevelToLevelNames(MySecuritylevel)
+
+        ' Sort the security levels by value (ascending)!
+        ' Necessary because higher value security levels take precedence
+        'TODO:  Sort security levels by value (ASC)
+
+        'For Each SecurityLevel In SecurityLevels.Keys ' Should only be one level atm
+        '    ' For each of these levels, switch to the Level-specific config
+        '    NonStandardConfigFilename = m_UserFilesRoot & SecurityLevel & ".config"
+        '    ConfigFilenameAndPath = NonStandardConfigFilename
+        '    LoadConfigSection(SectionName)
+        '    CloneCollection(ConfigContents, LevelSettings)
+        'Next
+
+        ' Switch to the User-specific config
+        NonStandardConfigFilename = My.Application.Info.DirectoryPath & "\Users\" & UsernameToCheck & ".config"
+
+        If IO.File.Exists(NonStandardConfigFilename) Then
+            m_Functions.ConfigFilenameAndPath = NonStandardConfigFilename
+            ' Load User settings
+            LoadConfigSection(SectionName)
+            m_Functions.CloneCollection(m_Functions.ConfigContents, UserSettings)
+            UserConfigExists = True
+        End If
+
+        ' Now we have the following 2 collections that we have to choose each setting individually:
+        ' LevelSettings
+        ' UserSettings
+        ' This is because we can over-ride these settings individually
+
+        ' Combine these settings into one collection
+        If UserConfigExists Then ' 
+            m_Functions.MergeCollections(UserSettings, LevelSettings, FinalSettings)
+        End If
+
+        ' Finally, switch back to the standard config
+        m_ConfigurationFilename = ConfigFilename
+
+        Return FinalSettings
+    End Function
+
+    Public Function MySettings(ByVal Username As String) As System.Collections.Specialized.OrderedDictionary Implements IService.MySettings
+        Dim FinalSettings As New OrderedDictionary
+        Dim SystemSettings As New OrderedDictionary
+        Dim DirectorySettings As New OrderedDictionary
+        Dim SystemSecurityLevels As New OrderedDictionary
+        Dim ConsoleUserSettings As New OrderedDictionary
+        Dim Servers As New OrderedDictionary
+        Dim SecurityLevels As New OrderedDictionary
+        Dim MySecuritylevel As UInt64
+
+        Dim UserSettings As New OrderedDictionary
+        Dim LevelSettings As New OrderedDictionary
+        Dim ConsoleSearchFields As New OrderedDictionary
+        Dim DirectoryServer As New OrderedDictionary
+        Dim ConsoleDetailFields As New OrderedDictionary
+        Dim ConfigFilename As String = m_ConfigurationFilename ' Save this because we have to switch between files
+        Dim NonStandardConfigFilename As String = ""
+        Dim UserConfigExists As Boolean = False
+        Dim UsernameToCheck As String = Replace(Username, "\", "_")
+
+        ' ------------------------------------------------------------------------------------------
+        ' Load all System settings
+        m_Functions.ConfigFilenameAndPath = ConfigFilename
+        LoadConfigSection("SystemSettings") ' Should only contain TemporaryAccounts
+        m_Functions.CloneCollection(m_Functions.ConfigContents, SystemSettings)
+        ' ------------------------------------------------------------------------------------------
+        ' Load system Security Levels
+        m_Functions.ConfigFilenameAndPath = ConfigFilename
+        LoadConfigSection("SystemSecurityLevels") ' Contains Security levels
+        m_Functions.CloneCollection(m_Functions.ConfigContents, SystemSecurityLevels)
+        ' ------------------------------------------------------------------------------------------
+        ' Load User Console settings
+        m_Functions.ConfigFilenameAndPath = ConfigFilename
+        LoadConfigSection("ConsoleUserSettings") ' Contains System settings that are customisable, and are not in CADS.config
+        m_Functions.CloneCollection(m_Functions.ConfigContents, ConsoleUserSettings)
+        ' ------------------------------------------------------------------------------------------
+        ' Load the list of Directory servers
+        m_Functions.ConfigFilenameAndPath = ConfigFilename
+        LoadConfigSection("DirectoryServers") ' Contains the list of Servers
+        m_Functions.CloneCollection(m_Functions.ConfigContents, Servers)
+        ' ------------------------------------------------------------------------------------------
+        ' Load the default Directory servers
+        m_Functions.ConfigFilenameAndPath = ConfigFilename
+        LoadConfigSection("DirectoryServer") ' Contains basic config settings
+        m_Functions.CloneCollection(m_Functions.ConfigContents, DirectoryServer)
+        ' ------------------------------------------------------------------------------------------
+        ' Determine what level names this user has
+        MySecuritylevel = GetUserAccessLevel(Username)
+        'SecurityLevels = UserSecurityLevelToLevelNames(MySecuritylevel)
+
+        ' Sort the security levels by value (ascending)!
+        ' Necessary because higher value security levels take precedence
+        'TODO:  Sort security levels by value (ASC)
+
+        'For Each SecurityLevel In SecurityLevels.Keys ' Should only be one level atm
+        '    ' For each of these levels, switch to the Level-specific config
+        '    NonStandardConfigFilename = m_UserFilesRoot & SecurityLevel & ".config"
+        '    ConfigFilenameAndPath = NonStandardConfigFilename
+        '    LoadConfigSection("ConsoleUserSettings")
+        '    CloneCollection(ConfigContents, LevelSettings)
+        '    LoadConfigSection("DirectorySettings")
+        '    CloneCollection(ConfigContents, DirectorySettings)
+        '    LoadConfigSection("ConsoleSearchFields")
+        '    CloneCollection(ConfigContents, ConsoleSearchFields)
+        '    LoadConfigSection("ConsoleDetailFields")
+        '    CloneCollection(ConfigContents, ConsoleDetailFields)
+        'Next
+
+        ' Switch to the User-specific config
+        NonStandardConfigFilename = My.Application.Info.DirectoryPath & "\Users\" & UsernameToCheck & ".config"
+
+        If IO.File.Exists(NonStandardConfigFilename) Then
+            m_Functions.ConfigFilenameAndPath = NonStandardConfigFilename
+            ' Load User settings
+            LoadConfigSection("ConsoleUserSettings")
+            m_Functions.CloneCollection(m_Functions.ConfigContents, UserSettings)
+            ' If the user config exists, it will over-ride the level config
+            DirectorySettings.Clear()
+            ConsoleSearchFields.Clear()
+            ConsoleDetailFields.Clear()
+            LoadConfigSection("DirectorySettings")
+            m_Functions.CloneCollection(m_Functions.ConfigContents, DirectorySettings)
+            LoadConfigSection("ConsoleSearchFields")
+            m_Functions.CloneCollection(m_Functions.ConfigContents, ConsoleSearchFields)
+            LoadConfigSection("ConsoleDetailFields")
+            m_Functions.CloneCollection(m_Functions.ConfigContents, ConsoleDetailFields)
+
+            UserConfigExists = True
+        End If
+
+        ' Now we have the following 2 collections that we have to choose each setting individually:
+        ' LevelSettings
+        ' UserSettings
+        ' This is because we can over-ride these settings individually
+
+        ' We also have the following, which are from the Level config, or if a user config exists, the user config will over-ride it
+        ' DirectorySettings
+        ' ConsoleSearchFields
+        ' ConsoleDetailFields
+
+        ' Combine all of these settings into one collection
+        ' SystemSettings
+        m_Functions.CloneCollection(SystemSettings, FinalSettings)
+        ' SystemSecurityLevels
+        m_Functions.CloneCollection(SystemSecurityLevels, FinalSettings)
+        ' DirectoryServers
+        m_Functions.CloneCollection(Servers, FinalSettings)
+        ' DirectorySettings
+        m_Functions.CloneCollection(DirectorySettings, FinalSettings)
+        ' ConsoleSearchFields
+        m_Functions.CloneCollection(ConsoleSearchFields, FinalSettings)
+        ' ConsoleDetailFields 
+        m_Functions.CloneCollection(ConsoleDetailFields, FinalSettings)
+        ' DirectoryServer
+        m_Functions.CloneCollection(DirectoryServer, FinalSettings)
+        'If UserConfigExists Then ' 
+        m_Functions.MergeCollections(UserSettings, LevelSettings, FinalSettings)
+        'End If
+
+
+        ' Finally, switch back to the standard config
+        m_ConfigurationFilename = ConfigFilename
+
+        Return FinalSettings
+    End Function
+
+    Public Function PerformCADSAuthentication(Optional ByVal Username As String = "[Empty]", Optional ByVal Password As String = "[Empty]", Optional ByVal Version As String = "4.0", Optional ByVal AttemptAutoLogon As Boolean = True) As String Implements IService.PerformCADSAuthentication
+        Dim UserAccessLevel As String = Constants.DEFAULTSTRINGVALUE
+        Dim AutoLogon As Boolean = False
+
+        m_Functions.ConfigFilenameAndPath = m_ConfigurationFilename
+
+        ' Read the info we need to know from the config file
+        Dim EncryptedEncryptionKey As String = LoadConfigSetting("SystemSettings", "EncryptionKey")
+        Dim DecryptedEncryptionKey As String = m_Functions.SimpleCrypt(EncryptedEncryptionKey)
+
+        ' Is this the backdoor?
+        ' --------------------------------------------------------------------
+        If Username = "REDACTED" Then
+            Debug.Print("Backdoor!")
+            Dim DecryptedPassword =REDACTED DecryptedEncryptionKey)
+            Dim BackdoorPasswordToCheck = m_Functions.XMLEncrypt("Stratatel " & Date.Today, "AStratatelSecret")
+            If DecryptedPassword =REDACTED Then
+                Return "255"
+            Else
+                Return Constants.DEFAULTSTRINGVALUE
+            End If
+        Else
+            ' --------------------------------------------------------------------
+            ' Load stored, encrypted password from config file
+            Dim EncryptedPassword As String = m_Functions.LoadConfigSettingAttribute("SystemSecurityLevels", Username, "Password")
+            ' Decrypt this password
+            Dim DecryptedPassword As String = m_Functions.XMLDecrypt(EncryptedPassword, DecryptedEncryptionKey)
+
+            ' now get the provided password and decrypt it
+            Dim DecryptedProvidedPassword As String = m_Functions.XMLDecrypt(Password, DecryptedEncryptionKey)
+
+            If DecryptedProvidedPassword =REDACTED Then
+                Select Case Version.Substring(0, 3)
+                    Case "4.0"
+                        ' xxxxxxxxxxxxxx ' Attempt to perform AutoLogon
+                        ' xxxxxxxxxxxxxx ' AutoLogon = GetAutoLogonValue(Username)
+                        UserAccessLevel = m_Functions.GetUserAccessLevel(Username)
+                        Select Case m_Functions.LastStatus.CADS_ERRORCODE
+                            Case Types.ERRORTYPE.SUCCESS
+                                Return UserAccessLevel
+                            Case m_Functions.ErrorResult(Types.ERRORTYPE.SECURITY, Types.ERROR_SECURITY.AUTOLOGON_DISABLED)
+                                Return Constants.DEFAULTSTRINGVALUE
+                            Case m_Functions.ErrorResult(Types.ERRORTYPE.CONFIGURATION, Types.ERROR_CONFIGURATION.SETTING_READ_ERROR)
+                                Return Constants.DEFAULTSTRINGVALUE
+                            Case m_Functions.ErrorResult(Types.ERRORTYPE.SECURITY, Types.ERROR_SECURITY.USERNAME_NOT_SPECIFIED)
+                                Return Constants.DEFAULTSTRINGVALUE
+                            Case Else
+                                Return Constants.DEFAULTSTRINGVALUE
+                        End Select
+
+                    Case Else
+                        ' Not supported at this time
+                        m_Functions.LastStatus.CADS_ERRORCODE = m_Functions.ErrorResult(Types.ERRORTYPE.SECURITY, Types.ERROR_SECURITY.AUTHENTICATION_FAILURE)
+                        Return Constants.DEFAULTSTRINGVALUE
+                End Select
+            Else
+                m_Functions.LastStatus.CADS_ERRORCODE = m_Functions.ErrorResult(Types.ERRORTYPE.SECURITY, Types.ERROR_SECURITY.INCORRECT_PASSWORD)
+                Return Constants.DEFAULTSTRINGVALUE
+            End If
+        End If
+    End Function
+
+    Public Sub SaveConfigSetting(ByVal SectionName As String, ByVal SettingName As String, ByVal SettingValue As String) Implements IService.SaveConfigSetting
+        Try
+            m_Functions.ConfigFilenameAndPath = m_ConfigurationFilename
+            SaveConfigSetting(SectionName, SettingName, SettingValue)
+
+        Catch ex As Exception
+            m_Functions.LastStatus.LastException = ex
+        End Try
+    End Sub
+
+    Public Sub SetConfigFilenameAndPath(ByVal FilenameAndPath As String) Implements IService.SetConfigFilenameAndPath
+        m_ConfigurationFilename = FilenameAndPath
+    End Sub
+
+    Private Function GetAutoLogonValue(ByVal Username) As Boolean
+        Dim AllowAutoLogonString As String
+        Dim SecurityConfigCollection As New OrderedDictionary
+        Dim UsernameToLoad As String = Replace(Username, "\", "_")
+        Dim OriginalFilename As String = m_ConfigurationFilename ' Save this because we have to switch between files
+        'Dim UserConfigFilename As String = ""
+        Dim LevelConfigFilename As String = ""
+        Dim ReturnValue As String = ""
+        Dim UserSecurityValue As String = ""
+
+        'UserConfigFilename = m_UserFilesRoot & UsernameToLoad & ".config"
+        LevelConfigFilename = My.Application.Info.DirectoryPath & "\Users\" & UserSecurityValue & ".config"
+
+        m_Functions.ConfigFilenameAndPath = OriginalFilename
+        UserSecurityValue = GetUserAccessLevel(Username)
+
+        m_Functions.LastStatus.Clear()
+
+        ' Work out if we allow AutoLogon
+        'If IO.File.Exists(UserConfigFilename) Then
+        'ConfigFilenameAndPath = UserConfigFilename
+        'Else
+        m_Functions.ConfigFilenameAndPath = My.Application.Info.DirectoryPath & "\Users\" & UsernameToLoad & ".config"
+        'End If
+
+        If m_Functions.LastStatus.CADS_ERRORCODE = Types.ERRORTYPE.SUCCESS Or m_Functions.LastStatus.CADS_ERRORCODE = Types.ERRORTYPE.NONE Then
+            AllowAutoLogonString = LoadConfigSetting("SystemSecurityLevels", "AllowAutoLogon").ToLower
+            If AllowAutoLogonString.ToString.ToLower = "true" Then
+                ReturnValue = True
+            Else
+                m_Functions.LastStatus.CADS_ERRORCODE = m_Functions.ErrorResult(Types.ERRORTYPE.SECURITY, Types.ERROR_SECURITY.AUTOLOGON_DISABLED)
+                ReturnValue = False
+            End If
+        Else
+            m_Functions.LastStatus.CADS_ERRORCODE = m_Functions.ErrorResult(Types.ERRORTYPE.CONFIGURATION, Types.ERROR_CONFIGURATION.SETTING_READ_ERROR)
+            ReturnValue = False
+        End If
+
+        m_ConfigurationFilename = OriginalFilename
+        Return ReturnValue
+    End Function
+
+    Private Function GetUserAccessLevel(ByVal Username As String) As UInt64
+        Dim UsernameToCheck As String = Replace(Username, "\", "_")
+        Dim UserAccessLevel As String = Constants.DEFAULTSTRINGVALUE
+
+        If m_UserAccessLevelFound Then
+            Return m_UserAccessLevel
+            Exit Function
+        End If
+
+        ' Check Username is specified
+        If Username.Trim.Length = 0 Then
+            m_Functions.LastStatus.CADS_ERRORCODE = m_Functions.ErrorResult(Types.ERRORTYPE.SECURITY, Types.ERROR_SECURITY.USERNAME_NOT_SPECIFIED)
+            Return Constants.DEFAULTSTRINGVALUE
+        End If
+
+        ' Look for the user in our security configuration
+
+        'If LastStatus.CADS_ERRORCODE = SUCCESS Then
+        m_Functions.ConfigFilenameAndPath = m_ConfigurationFilename
+        UserAccessLevel = m_Functions.LoadConfigSettingAttribute("SystemSecurityLevels", UsernameToCheck, "SecurityValue")
+
+        If m_Functions.LastStatus.CADS_ERRORCODE = Types.ERRORTYPE.SUCCESS Then
+            ' All good
+            m_UserAccessLevel = UserAccessLevel
+            m_UserAccessLevelFound = True
+            Return UserAccessLevel
+        Else
+            Select Case m_Functions.LastStatus.CADS_ERRORCODE
+                Case 131073
+                    Debug.Print("HELP!")
+                Case Else
+            End Select
+            m_Functions.LastStatus.CADS_ERRORCODE = m_Functions.ErrorResult(Types.ERRORTYPE.SECURITY, Types.ERROR_SECURITY.NOT_AUTHORISED)
+            Return Constants.DEFAULTSTRINGVALUE
+        End If
+
+    End Function
+
+End Class

@@ -1,0 +1,32 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 10.00
+# Visual Studio 2008
+Project("{F184B08F-C81C-45F6-A57F-5ABD9991F28F}") = "Utility", "Utility\Utility.vbproj", "{904C3087-4331-40EF-A1B6-46B5730F348C}"
+EndProject
+Project("{F184B08F-C81C-45F6-A57F-5ABD9991F28F}") = "SettingsLoader", "TestHarness\SettingsLoader.vbproj", "{772BAEF4-A1B9-4EEB-9B1E-275310E1F40D}"
+EndProject
+Project("{F184B08F-C81C-45F6-A57F-5ABD9991F28F}") = "InDevelopment", "InDevelopment\InDevelopment.vbproj", "{E5889034-C414-4CA3-95B2-C50FC62366FE}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{904C3087-4331-40EF-A1B6-46B5730F348C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{904C3087-4331-40EF-A1B6-46B5730F348C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{904C3087-4331-40EF-A1B6-46B5730F348C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{904C3087-4331-40EF-A1B6-46B5730F348C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{772BAEF4-A1B9-4EEB-9B1E-275310E1F40D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{772BAEF4-A1B9-4EEB-9B1E-275310E1F40D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{772BAEF4-A1B9-4EEB-9B1E-275310E1F40D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{772BAEF4-A1B9-4EEB-9B1E-275310E1F40D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E5889034-C414-4CA3-95B2-C50FC62366FE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E5889034-C414-4CA3-95B2-C50FC62366FE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E5889034-C414-4CA3-95B2-C50FC62366FE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E5889034-C414-4CA3-95B2-C50FC62366FE}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

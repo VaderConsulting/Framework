@@ -1,0 +1,55 @@
+# Build output
+bin/
+obj/
+
+# Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Legacy source-control bindings
+*.scc
+*.vssscc
+*.vspscc
+
+# NuGet
+packages/
+
+
+# Secrets / credentials (never upload)
+*.pfx
+*.p12
+*.pem
+*.key
+.env
+**/appsettings.*.local.json
+# Logs and temp
+*.log
+*.tmp
+*.bak
+
+# Redacted originals (see *.example files)
+TestHarness/Form1.vb
+InDevelopment/CADS3Import.vb
+InDevelopment/CADS3Import.Designer.vb
+Utility/Host.vb
+Utility/frmLogin.vb
+Utility/Utility.sln
+Utility/frmLogin.Designer.vb
+Utility/Directory.vb
+Utility/Settings.vb
+Utility/GlobalSettings.vb
+Utility/Functions.vb
+Utility/Types.vb
+Utility/Users.vb
+Utility/Helper.vb
+Utility/Backup/Host.vb
+Utility/Backup/frmLogin.vb
+Utility/Backup/frmLogin.Designer.vb
+Utility/Backup/Functions.vb
+Utility/Backup/Types.vb
+Utility/Backup/TestHarness/Form1.vb
+Utility/Backup/InDevelopment/CADS3Import.vb
+Utility/Backup/InDevelopment/CADS3Import.Designer.vb
