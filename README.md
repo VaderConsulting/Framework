@@ -27,6 +27,10 @@ VB.NET 3.5 working copy of `Utility.sln` (VS 2008). `Utility` (assembly Utility 
 
 Open `Utility.sln` in Visual Studio.
 
+## Requirements
+
+- Visual Studio 2008, .NET Framework 3.5
+
 ## Attribution and provenance
 
 - **Assembly company:** Microsoft, Stratatel, Stratatel Ltd
