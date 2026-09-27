@@ -33,6 +33,7 @@ Open `Utility.sln` in Visual Studio.
 
 ## Attribution and provenance
 
+Working copy from my Historical Dev folder `Framework`.
 - **Assembly company:** Microsoft, Stratatel, Stratatel Ltd
 - **Assembly copyright:** Copyright © Microsoft 2008, Copyright © Stratatel 2008, Copyright © Stratatel Ltd 2008
 
