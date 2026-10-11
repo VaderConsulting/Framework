@@ -1,6 +1,6 @@
 # Framework
 
-VB.NET 3.5 working copy of `Utility.sln` (VS 2008). `Utility` (assembly Utility 1.7.13.0, Stratatel Ltd) is a class library for CADS XML config, AD/LDAP (`Directory`, `ADUser`), logging, WCF `Host`/`IService`, and `frmLogin`. `SettingsLoader` in `TestHarness` is the WinForms Settings Loader that calls `Functions.DoLogon` and lists config keys; `InDevelopment` adds CADS3 LDAP import (`CADS3Import`), LDAP helpers, logging, and a Licensing stub. Open `Utility.sln`. This is a historical working copy from Dave Robinson / VaderConsulting (Stratatel-era CADS helpers).
+VB.NET 3.5 working copy of `Utility.sln` (VS 2008). `Utility` (assembly Utility 1.7.13.0, Stratatel Ltd) is a class library for CADS XML config, AD/LDAP (`Directory`, `ADUser`), logging, WCF `Host`/`IService`, and `frmLogin`. `SettingsLoader` in `TestHarness` is the WinForms Settings Loader that calls `Functions.DoLogon` and lists config keys; `InDevelopment` adds CADS3 LDAP import (`CADS3Import`), LDAP helpers, logging, and a Licensing stub. Open `Utility.sln`. This is a historical working copy from Dave Robinson / Vader Consulting (Stratatel-era CADS helpers).
 
 **Source last updated:** 2019-10-25  
 **Language:** VB.NET  
@@ -9,7 +9,7 @@ VB.NET 3.5 working copy of `Utility.sln` (VS 2008). `Utility` (assembly Utility 
 
 ## What it is
 
-VB.NET 3.5 working copy of `Utility.sln` (VS 2008). `Utility` (assembly Utility 1.7.13.0, Stratatel Ltd) is a class library for CADS XML config, AD/LDAP (`Directory`, `ADUser`), logging, WCF `Host`/`IService`, and `frmLogin`. `SettingsLoader` in `TestHarness` is the WinForms Settings Loader that calls `Functions.DoLogon` and lists config keys; `InDevelopment` adds CADS3 LDAP import (`CADS3Import`), LDAP helpers, logging, and a Licensing stub. Open `Utility.sln`. This is a historical working copy from Dave Robinson / VaderConsulting (Stratatel-era CADS helpers).
+VB.NET 3.5 working copy of `Utility.sln` (VS 2008). `Utility` (assembly Utility 1.7.13.0, Stratatel Ltd) is a class library for CADS XML config, AD/LDAP (`Directory`, `ADUser`), logging, WCF `Host`/`IService`, and `frmLogin`. `SettingsLoader` in `TestHarness` is the WinForms Settings Loader that calls `Functions.DoLogon` and lists config keys; `InDevelopment` adds CADS3 LDAP import (`CADS3Import`), LDAP helpers, logging, and a Licensing stub. Open `Utility.sln`. This is a historical working copy from Dave Robinson / Vader Consulting (Stratatel-era CADS helpers).
 
 ## Solution structure
 
